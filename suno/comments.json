@@ -1,0 +1,82 @@
+[
+  {
+    "id": "d627b8d9-41d5-47c9-8491-fc4c705f76be",
+    "trackId": "72d2e56a-e46f-40d5-998b-361742c42061",
+    "name": "",
+    "text": "Keren ini bang",
+    "createdAt": "2026-11-19T08:00:02.507Z",
+    "adminLiked": true,
+    "replies": [
+      {
+        "id": "e45deaad-6b68-4203-982b-f85ce386c035",
+        "name": "Budijoi",
+        "text": "thankyou",
+        "createdAt": "2026-11-19T12:43:59.443Z"
+      }
+    ],
+    "adminLikedAt": "2026-11-19T12:43:51.379Z"
+  },
+  {
+    "id": "fc1d2ca2-decd-4b1e-af81-5ff6b03b7a23",
+    "trackId": "6bc784c9-2031-4f54-8442-c33ea71cf8c4",
+    "name": "",
+    "text": "Wah...",
+    "createdAt": "2026-11-19T08:38:49.469Z",
+    "adminLiked": true,
+    "replies": [
+      {
+        "id": "f18a6abb-b4ce-4ca8-8c5c-4bf8c90576a9",
+        "name": "Budijoi",
+        "text": "wah kenapa?",
+        "createdAt": "2026-11-19T12:43:46.768Z"
+      }
+    ],
+    "adminLikedAt": "2026-11-19T12:43:36.210Z"
+  },
+  {
+    "id": "98f05ea4-e87e-4c6b-a250-e921f5bfdbeb",
+    "trackId": "5766a802-64c3-4dfd-b48e-dc6bbb05b5d4",
+    "name": "Budijoi",
+    "text": "Ini dari pengalaman pribadi...",
+    "createdAt": "2026-11-19T08:47:18.478Z",
+    "adminLiked": true,
+    "replies": [],
+    "adminLikedAt": "2026-11-19T12:43:32.229Z"
+  },
+  {
+    "id": "6531b049-d14e-48aa-a000-df916f2c2277",
+    "trackId": "be929cc8-0367-4583-b274-9455c1673be7",
+    "name": "",
+    "text": "Leadnya coba pake sax om",
+    "trackTitle": "Dibayar Lunas dengan Debu (inst)",
+    "createdAt": "2026-11-19T21:38:39.108Z",
+    "adminLiked": true,
+    "replies": [
+      {
+        "id": "60093ffc-712c-4e81-9d3b-2fc2ba80439d",
+        "name": "Budijoi",
+        "text": "oke nanti dicoba",
+        "createdAt": "2026-11-20T04:13:44.789Z"
+      }
+    ],
+    "adminLikedAt": "2026-11-19T21:39:10.050Z"
+  },
+  {
+    "id": "ff69f489-a187-4f74-84a0-3d398c0fca4c",
+    "trackId": "7750fd77-9bda-400c-bd12-58e8726bed1a",
+    "name": "",
+    "text": "bisa-bisanya jadi sedih begini lagunya",
+    "trackTitle": "Dilema (orchestra)",
+    "createdAt": "2026-11-20T04:13:07.219Z",
+    "adminLiked": true,
+    "replies": [
+      {
+        "id": "a7c37983-f7b4-49d5-9d32-3a37c8f3cbd6",
+        "name": "Budijoi",
+        "text": "hahahaa...galau ya",
+        "createdAt": "2026-11-20T04:14:01.582Z"
+      }
+    ],
+    "adminLikedAt": "2026-11-20T04:13:53.196Z"
+  }
+]

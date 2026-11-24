@@ -1,14 +1,14 @@
-const SHELL_CACHE = 'suno-player-offline-shell-v1';
-const DATA_CACHE = 'suno-player-offline-data-v1';
-const AUDIO_CACHE = 'suno-player-offline-audio-v1';
-const META_CACHE = 'suno-player-offline-meta-v1';
+const SHELL_CACHE = 'budijoi-offline-shell-v1';
+const DATA_CACHE = 'budijoi-offline-data-v1';
+const AUDIO_CACHE = 'budijoi-offline-audio-v1';
+const META_CACHE = 'budijoi-offline-meta-v1';
 const POLICY_URL = new URL('/__offline_cache_policy__', self.location.origin).href;
 let offlinePolicy = { enabled: true, maxMB: 100, clearVersion: 0 };
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL_CACHE);
-    await cache.addAll(['/', '/about', '/push-client.js']);
+    await cache.addAll(['/', '/about', '/push-client.js', '/QRIS.png']);
     await self.skipWaiting();
   })());
 });
@@ -253,7 +253,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(networkFirst(request, SHELL_CACHE, fallback));
     return;
   }
-  if (url.pathname === '/push-client.js') {
+  if (['/push-client.js', '/QRIS.png'].includes(url.pathname)) {
     event.respondWith(networkFirst(request, SHELL_CACHE));
   }
 });
@@ -316,7 +316,7 @@ self.addEventListener('push', (event) => {
   if (!payload || typeof payload !== 'object') payload = {};
 
   const title = typeof payload.title === 'string' ? payload.title : 'Lagu baru';
-  const body = typeof payload.body === 'string' ? payload.body : 'Ada lagu baru di Suno Playlist Player.';
+  const body = typeof payload.body === 'string' ? payload.body : 'Ada lagu baru di pemutar Budijoi.';
   const path = sameOriginPath(typeof payload.url === 'string' ? payload.url : '/');
   const tag = typeof payload.tag === 'string' ? payload.tag : 'budijoi-song-added';
   const notificationId = typeof payload.notificationId === 'string' ? payload.notificationId : tag;

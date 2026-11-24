@@ -686,7 +686,7 @@
             <p class="admin-comment-text">${esc(comment.text || '')}</p>
             ${replies.length ? `<div class="admin-comment-replies">${replies.map((reply) => `
               <div class="admin-comment-reply">
-                <strong>${esc(reply.name || 'Admin')}</strong>
+                <strong>${esc(reply.name || 'Budijoi')}</strong>
                 <p>${esc(reply.text || '')}</p>
               </div>`).join('')}</div>` : ''}
             <div class="admin-comment-tools">
@@ -694,7 +694,7 @@
               <button class="btn btn-danger btn-sm admin-comment-delete" type="button" data-action="delete-comment" data-id="${esc(comment.id)}" aria-label="Hapus komentar dari ${esc(comment.name || 'Pengunjung')} untuk ${esc(comment.trackTitle || 'lagu')}">Hapus</button>
             </div>
             <form class="reply-form" data-comment-reply="${esc(comment.id)}">
-              <label for="reply-${esc(comment.id)}">Balas sebagai Admin</label>
+              <label for="reply-${esc(comment.id)}">Balas sebagai Budijoi</label>
               <textarea id="reply-${esc(comment.id)}" name="text" maxlength="1000" required></textarea>
               <button class="btn btn-primary" type="submit">Kirim balasan</button>
               <p class="reply-status" role="status" aria-live="polite"></p>

@@ -1485,6 +1485,81 @@
       white-space: nowrap;
     }
 
+    /* ---------- Donation ---------- */
+    .donate-fab {
+      position: fixed;
+      right: clamp(12px, 3vw, 24px);
+      bottom: calc(var(--player-h) + 14px);
+      z-index: 90;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border-radius: 999px;
+      border: 1px solid rgba(var(--accent-rgb), 0.38);
+      background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.2), rgba(var(--accent-2-rgb), 0.16));
+      color: var(--text);
+      font: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.85);
+      transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .donate-fab:hover,
+    .donate-fab:focus-visible {
+      transform: translateY(-1px);
+      border-color: rgba(var(--accent-rgb), 0.65);
+      background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.3), rgba(var(--accent-2-rgb), 0.24));
+    }
+    .donate-fab .icon { width: 18px; height: 18px; color: var(--accent-3); }
+
+    .donate-dialog[open] {
+      display: flex;
+      flex-direction: column;
+      width: min(500px, calc(100vw - 28px));
+      max-height: min(88vh, 680px);
+    }
+    .donate-head,
+    .donate-foot { flex: 0 0 auto; }
+    .donate-head { padding: 24px 56px 14px 24px; border-bottom: 1px solid var(--line); }
+    .donate-head h2 {
+      margin: 6px 0 0;
+      font-family: var(--font-display);
+      font-weight: 400;
+      font-size: clamp(1.6rem, 3.4vw, 2.2rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+    .donate-head p { margin: 8px 0 0; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+    .donate-frame {
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      padding: 18px 24px;
+      overflow: hidden;
+      background: #0b0910;
+    }
+    .donate-frame img { display: block; width: auto; height: auto; max-width: min(100%, 400px); max-height: min(400px, 40vh, max(0px, calc(86vh - 240px))); aspect-ratio: 1 / 1; object-fit: contain; }
+    .donate-image-error { margin: 10px 0 0; color: #ff9a8f; font-size: 12px; text-align: center; }
+    .donate-foot {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 24px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .donate-foot span { font-size: 11.5px; color: var(--faint); }
+    .donate-foot .btn { height: 36px; padding: 0 14px; font-size: 12px; }
+
     /* ---------- Responsive ---------- */
     @media (max-width: 980px) {
       .player-inner { grid-template-columns: minmax(140px, 1fr) minmax(300px, 1.6fr) minmax(120px, 1fr); gap: 10px; }
@@ -1751,7 +1826,7 @@
           <span class="brand-name">Suno<span>Player</span></span>
           <span class="brand-tag">tidak resmi</span>
         </a>
-        <a class="topbar-about" href="/about" aria-label="Tentang Suno Playlist Player" title="Tentang Suno Playlist Player">
+        <a class="topbar-about" href="/about" aria-label="Tentang Budijoi" title="Tentang Budijoi">
           <svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg>
         </a>
         <a class="icon-btn" href="/nugaduhna" aria-label="Buka panel admin" title="Panel admin">
@@ -1907,7 +1982,7 @@
 
   <dialog class="details about-dialog" id="aboutDialog" aria-labelledby="aboutDialogTitle">
     <div class="about-dialog-head">
-      <h2 id="aboutDialogTitle">Tentang Suno Playlist Player</h2>
+      <h2 id="aboutDialogTitle">Tentang Budijoi</h2>
       <button class="icon-btn push-toggle" type="button" data-push-toggle aria-label="Aktifkan notifikasi lagu baru" title="Aktifkan notifikasi lagu baru" aria-pressed="false">
         <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7M10 20h4"></path></svg>
       </button>
@@ -1917,7 +1992,7 @@
     </div>
     <div class="about-dialog-content">
       <p class="about-dialog-loading" id="aboutLoading" role="status">Memuat halaman tentang...</p>
-      <iframe id="aboutFrame" title="Tentang Suno Playlist Player" width="860" height="680" loading="lazy"></iframe>
+      <iframe id="aboutFrame" title="Tentang Budijoi" width="860" height="680" loading="lazy"></iframe>
     </div>
     <p class="about-push-status" data-push-status role="status" aria-live="polite" hidden></p>
   </dialog>
@@ -1937,6 +2012,32 @@
       </div>
       <p class="download-status" id="downloadStatus" role="status" aria-live="polite"></p>
     </form>
+  </dialog>
+
+  <button class="donate-fab" id="donateBtn" type="button" aria-label="Donasi" title="Donasi" aria-haspopup="dialog" aria-controls="donateDialog">
+    <svg class="icon" aria-hidden="true"><use href="#i-heart"></use></svg>
+  </button>
+
+  <dialog class="details donate-dialog" id="donateDialog" aria-labelledby="donateTitle">
+    <button class="details-close" id="donateClose" type="button" aria-label="Tutup donasi">
+      <svg class="icon"><use href="#i-close"></use></svg>
+    </button>
+    <div class="donate-head">
+      <div class="eyebrow">Dukungan</div>
+      <h2 id="donateTitle">Dukung Budijoi</h2>
+      <p>Terima kasih sudah mendengarkan. Pindai QRIS ini untuk mendukung Budijoi.</p>
+    </div>
+    <div class="donate-frame">
+      <img id="donateImage" data-src="/QRIS.png" alt="Kode QRIS untuk mendukung Budijoi" width="400" height="400">
+      <p class="donate-image-error" id="donateImageError" role="alert" hidden>QRIS gagal dimuat. Anda tetap bisa membukanya di tab baru.</p>
+    </div>
+    <div class="donate-foot">
+      <span>Pembayaran melalui QRIS</span>
+      <a class="btn btn-glass" href="/QRIS.png" target="_blank" rel="noopener">
+        Buka QRIS di tab baru
+        <svg class="icon icon-xs"><use href="#i-external"></use></svg>
+      </a>
+    </div>
   </dialog>
 
   <div class="toast" id="toast" data-type="ok">
@@ -2101,6 +2202,11 @@
         queueCount: $('#queueCount'),
         playlistDialog: $('#playlistDialog'),
         playlistDialogClose: $('#playlistDialogClose'),
+        donateBtn: $('#donateBtn'),
+        donateDialog: $('#donateDialog'),
+        donateClose: $('#donateClose'),
+        donateImage: $('#donateImage'),
+        donateImageError: $('#donateImageError'),
         downloadDialog: $('#downloadDialog'),
         downloadClose: $('#downloadClose'),
         downloadCancel: $('#downloadCancel'),
@@ -3685,10 +3791,10 @@
                 <time class="comment-date" datetime="${esc(comment.createdAt || '')}">${esc(dateLabel)}</time>
               </div>
               <p class="comment-text">${esc(comment.text || '')}</p>
-              ${comment.adminLiked ? '<div class="comment-admin-like"><svg class="icon" aria-hidden="true"><use href="#i-heart"></use></svg>Disukai admin</div>' : ''}
+              ${comment.adminLiked ? '<div class="comment-admin-like"><svg class="icon" aria-hidden="true"><use href="#i-heart"></use></svg>Disukai Budijoi</div>' : ''}
               ${replies.length ? `<ul class="comment-replies">${replies.map((reply) => `
                 <li class="comment-reply">
-                  <div class="comment-reply-byline">${esc(reply.name || 'Admin')} · ${esc(fmtDate(reply.createdAt) || '')}</div>
+                  <div class="comment-reply-byline">${esc(reply.name || 'Budijoi')} · ${esc(fmtDate(reply.createdAt) || '')}</div>
                   <p class="comment-reply-text">${esc(reply.text || '')}</p>
                 </li>`).join('')}</ul>` : ''}
             </li>`;
@@ -4442,11 +4548,28 @@
         });
         els.playlistDialog.addEventListener('close', () => document.body.classList.remove('modal-open'));
 
+        const openDonate = () => {
+          if (!els.donateImage.getAttribute('src')) els.donateImage.src = els.donateImage.dataset.src;
+          els.donateDialog.showModal();
+          document.body.classList.add('modal-open');
+        };
+        const closeDonate = () => els.donateDialog.close();
+        els.donateBtn.addEventListener('click', openDonate);
+        els.donateClose.addEventListener('click', closeDonate);
+        els.donateImage.addEventListener('error', () => { els.donateImageError.hidden = false; });
         const closeOnEscape = (event) => {
           if (event.key !== 'Escape' || event.defaultPrevented) return;
           event.preventDefault();
           event.currentTarget.close();
         };
+        els.donateDialog.addEventListener('keydown', closeOnEscape);
+        els.donateDialog.addEventListener('click', (event) => {
+          if (event.target === els.donateDialog) closeDonate();
+        });
+        els.donateDialog.addEventListener('close', () => {
+          document.body.classList.remove('modal-open');
+          els.donateBtn.focus({ preventScroll: true });
+        });
 
         els.downloadClose.addEventListener('click', () => els.downloadDialog.close());
         els.downloadCancel.addEventListener('click', () => els.downloadDialog.close());
@@ -4455,7 +4578,7 @@
           if (event.target === els.downloadDialog) els.downloadDialog.close();
         });
         els.downloadDialog.addEventListener('close', () => {
-          if (!els.detailsDialog.open && !els.playlistDialog.open) {
+          if (!els.detailsDialog.open && !els.donateDialog.open && !els.playlistDialog.open) {
             document.body.classList.remove('modal-open');
           }
         });

@@ -1,12 +1,12 @@
 {
-  "appName": "Suno Playlist Player",
-  "appTag": "tidak resmi",
-  "eyebrow": "Pemutar playlist Suno",
-  "heroTitle": "Playlist Suno Anda,<em>siap diputar.</em>",
-  "heroSub": "Tambahkan playlist dari panel admin untuk mulai mendengarkan.",
-  "footer": "Pemutar tidak resmi. Tidak berafiliasi dengan Suno.",
-  "themeColor": "#ff6a3d",
+  "appName": "Budijoi Tunes",
+  "appTag": "v.1.2",
+  "eyebrow": "Pemutar Suno Budijoi",
+  "heroTitle": "Putar playlist Suno <em>Budijoi</em>.",
+  "heroSub": "Pilih salah satu playlist di bawah, atau putar kembali playlist terakhirmu.",
+  "footer": "Pemutar tidak resmi. Tidak berafiliasi dengan Suno. Musik adalah milik Budijoi.",
+  "themeColor": "#0068b8",
   "offlineEnabled": true,
-  "offlineMaxMB": 100,
-  "offlineClearVersion": 0
+  "offlineMaxMB": 500,
+  "offlineClearVersion": 1
 }

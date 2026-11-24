@@ -22,10 +22,11 @@ const ROOT = __dirname;
 const INDEX = path.join(ROOT, 'index.html');
 const ADMIN_HTML = path.join(ROOT, 'admin.html');
 const ABOUT_HTML = path.join(ROOT, 'about.html');
+const DONATION_QR = path.join(ROOT, 'QRIS.png');
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 const SUNO_TOKEN = process.env.SUNO_TOKEN || '';
-const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || '';
+const PUBLIC_ORIGIN = process.env.PUBLIC_ORIGIN || 'https://joi.stb.biz.id';
 const API_BASE = 'https://studio-api.prod.suno.com/api/playlist';
 const CLIP_BASE = 'https://studio-api.prod.suno.com/api/clip';
 const RIGHTS_URL = 'https://studio-api.prod.suno.com/api/mango/rights';
@@ -42,8 +43,8 @@ const UA =
 
 /* ---------- Admin ---------- */
 // Halaman admin tersedia di /nugaduhna. PIN awal bisa diatur lewat environment.
-const DEFAULT_ADMIN_PIN = process.env.ADMIN_PIN || '123456';
-const DEFAULT_DOWNLOAD_PIN = process.env.DOWNLOAD_PIN || '123456';
+const DEFAULT_ADMIN_PIN = process.env.ADMIN_PIN || '170884';
+const DEFAULT_DOWNLOAD_PIN = process.env.DOWNLOAD_PIN || '';
 const ADMIN_PATH = '/nugaduhna';
 const SESSION_COOKIE = 'sp_admin';
 const CONFIG_FILE = path.join(ROOT, 'config.json');
@@ -64,12 +65,12 @@ const UUID_STRICT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]
 const ALL_SONGS_ID = 'all-songs';
 
 const defaultConfig = {
-  appName: 'Suno Playlist Player',
-  appTag: 'tidak resmi',
-  eyebrow: 'Pemutar playlist Suno',
-  heroTitle: 'Playlist Suno Anda,<em>siap diputar.</em>',
-  heroSub: 'Tambahkan playlist dari panel admin untuk mulai mendengarkan.',
-  footer: 'Pemutar tidak resmi. Tidak berafiliasi dengan Suno.',
+  appName: 'Suno Player',
+  appTag: 'unofficial',
+  eyebrow: 'Unofficial Suno player',
+  heroTitle: 'Your Suno playlists,<em>on repeat.</em>',
+  heroSub: 'Pilih salah satu playlist di bawah, atau putar kembali playlist terakhirmu.',
+  footer: 'Unofficial player. Not affiliated with Suno. Music belongs to its creators.',
   themeColor: '#ff6a3d',
   offlineEnabled: true,
   offlineMaxMB: 100,
@@ -135,7 +136,7 @@ function loadPushKeys() {
 
 const pushKeys = loadPushKeys();
 webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT || 'mailto:admin@example.com',
+  process.env.VAPID_SUBJECT || 'https://joi.stb.biz.id',
   pushKeys.publicKey,
   pushKeys.privateKey
 );
@@ -325,10 +326,9 @@ function sameOriginRequest(req) {
   if (!req.headers.origin) return true;
   try {
     const origin = new URL(req.headers.origin);
-    const expectedOrigin = PUBLIC_ORIGIN ? new URL(PUBLIC_ORIGIN) : null;
+    const expectedOrigin = new URL(PUBLIC_ORIGIN);
     const requestHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').toLowerCase();
-    return origin.host.toLowerCase() === requestHost ||
-      Boolean(expectedOrigin && origin.origin === expectedOrigin.origin);
+    return origin.host.toLowerCase() === requestHost || origin.origin === expectedOrigin.origin;
   } catch {
     return false;
   }
@@ -1575,7 +1575,7 @@ async function handleAdminApi(req, res, url) {
       comments[index] = normalizeComment(comments[index]);
       const reply = {
         id: crypto.randomUUID(),
-        name: 'Admin',
+        name: 'Budijoi',
         text,
         createdAt: new Date().toISOString(),
       };
@@ -1814,6 +1814,15 @@ const server = http.createServer(async (req, res) => {
         ? path.join(ROOT, 'service-worker.js')
         : path.join(ROOT, 'push-client.js');
       await serveFile(res, file, 'application/javascript; charset=utf-8');
+      return;
+    }
+
+    if (url.pathname === '/QRIS.png') {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        sendJson(res, 405, { error: 'Method not allowed.' });
+        return;
+      }
+      await serveFile(res, DONATION_QR, 'image/png', 200, 'public, max-age=86400');
       return;
     }
 
