@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111214" />
+    <title>JOI Studio — MIDI Workstation</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="studio">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="JOI Studio">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="brand-name">JOI<span>Studio</span></span>
+        </a>
+        <div class="project-name"><span class="status-dot"></span><span id="projectTitle">Untitled session</span><span class="save-state">Saved locally</span></div>
+        <div class="top-actions">
+          <button class="icon-button" id="importButton" title="Import file MIDI" aria-label="Import MIDI"><span class="upload-icon">↑</span><span>Import MIDI</span></button>
+          <input id="midiFile" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
+          <button class="export-button" id="exportMenuButton">Export <span aria-hidden="true">⌄</span></button>
+          <div class="export-menu" id="exportMenu" hidden>
+            <button data-export="midi"><span class="file-type">.MID</span><span><b>Export MIDI</b><small>Notes &amp; tracks</small></span></button>
+            <button data-export="wav"><span class="file-type">.WAV</span><span><b>Export WAV</b><small>Uncompressed audio</small></span></button>
+            <button data-export="mp3"><span class="file-type">.MP3</span><span><b>Export MP3</b><small>Compressed audio</small></span></button>
+          </div>
+        </div>
+      </header>
+
+      <section class="transport">
+        <div class="transport-main">
+          <button class="transport-button play-button" id="playButton" aria-label="Play"><span class="play-icon"></span></button>
+          <button class="transport-button record-button" id="recordButton" aria-label="Record"><span></span></button>
+          <button class="transport-button stop-button" id="stopButton" aria-label="Stop"><span></span></button>
+          <span class="transport-divider"></span>
+          <div class="position"><small>POSITION</small><strong id="positionDisplay">001 : 01 : 000</strong></div>
+        </div>
+        <div class="transport-settings">
+          <label class="tempo-control"><span class="setting-icon">♩</span><input id="tempoInput" type="number" min="40" max="240" value="120" aria-label="Tempo BPM" /><span class="unit">BPM</span></label>
+          <button class="setting-button active" id="metronomeButton"><span class="metronome-icon">♬</span><span>Metronome</span><span class="toggle"><i></i></span></button>
+        </div>
+        <div class="master-level"><span class="level-icon">◖</span><div class="meter"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span>MASTER</span></div>
+      </section>
+
+      <section class="workspace">
+        <div class="section-heading">
+          <div><h1>Arrangement</h1><p>Build your sound, one note at a time.</p></div>
+          <div class="arrangement-tools"><button class="subtle-button" id="addBarButton">＋ Add 4 bars</button><span class="zoom-label">ZOOM</span><input type="range" min="60" max="140" value="100" id="zoomSlider" aria-label="Zoom timeline" /></div>
+        </div>
+        <div class="timeline" id="timeline">
+          <div class="track-header">
+            <div class="track-header-label">TRACKS <span>04</span></div>
+            <div class="track-header-spacer"></div>
+            <div class="track-controls-heading">M · S</div>
+          </div>
+          <div class="ruler-row"><div class="ruler-spacer"></div><div class="ruler" id="ruler"></div></div>
+          <div class="track-list" id="trackList"></div>
+        </div>
+        <div class="arrangement-footer"><span><span class="hint-key">CLICK</span> add a note <span class="hint-key">SPACE</span> play / stop</span><span id="noteCount">0 notes</span></div>
+      </section>
+
+      <section class="keyboard-panel">
+        <div class="keyboard-heading"><div><h2>Play your instrument</h2><p>Tap the keys or use your computer keyboard</p></div><div class="octave-controls"><button id="octaveDown" aria-label="Octave down">−</button><span id="octaveLabel">OCT 4</span><button id="octaveUp" aria-label="Octave up">＋</button></div></div>
+        <div class="keyboard-shell"><div class="keyboard" id="keyboard" aria-label="Piano keyboard"></div></div>
+      </section>
+      <footer class="footer"><span>Made for the music in you.</span><span><i></i> AUDIO ENGINE READY</span></footer>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </main>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>
