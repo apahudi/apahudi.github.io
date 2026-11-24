@@ -1,0 +1,8 @@
+{
+  "name": "Remix Budijoi Suno",
+  "description": "Aplikasi pemutar musik Android ringan untuk Budijoi Suno (joi.stb.biz.id) dengan offline caching audio dan notifikasi push.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
