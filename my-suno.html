@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My Suno</title>
+<style>
+:root{--bg:#0a0807;--line:rgba(255,255,255,.08);--tx:#f5f1ee;--mu:#8a8580;--ac:#ff6b3d;--hov:rgba(255,255,255,.04);--soft:color-mix(in srgb,var(--ac) 80%,#fff 20%)}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--tx);font:14px/1.4 "Inter","Segoe UI",system-ui,sans-serif}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+main{min-height:100%;background:radial-gradient(ellipse 70% 360px at 50% -80px,color-mix(in srgb,var(--ac) 22%,transparent),transparent)}
+.wrap{max-width:1000px;margin:0 auto;padding:32px 20px 150px}
+#siteTitle{font:800 clamp(28px,5vw,40px)/1.1 "Inter","Segoe UI",system-ui,sans-serif;letter-spacing:-.04em;margin-bottom:22px}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:28px;flex-wrap:wrap}
+.btn{background:var(--ac);color:#1a0b05;font-weight:700;border-radius:999px;padding:13px 26px;display:inline-flex;gap:8px;align-items:center;box-shadow:0 8px 30px color-mix(in srgb,var(--ac) 40%,transparent)}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.btn.o{background:color-mix(in srgb,var(--ac) 10%,transparent);color:var(--soft);border:1px solid color-mix(in srgb,var(--ac) 35%,transparent);box-shadow:none}
+.btn.o svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.btn.o.on{background:color-mix(in srgb,var(--ac) 28%,transparent)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.g{background:none;color:var(--tx);border:1px solid #3a3532;box-shadow:none}
+.btn.g:hover{background:var(--hov)}
+.ic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:var(--mu);flex:none}
+.ic:hover{color:var(--tx);background:var(--hov)}
+.ic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ic.on{color:var(--soft)}
+.ic.rnd{border:1px solid var(--line);width:44px;height:44px;background:rgba(255,255,255,.03)}
+.card{border:1px solid var(--line);border-radius:22px;background:rgba(255,255,255,.025);overflow:hidden}
+.ch{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid var(--line)}
+.ct{display:flex;gap:10px;align-items:center;font-weight:700;letter-spacing:.12em;font-size:12px;color:var(--mu)}
+.badge{background:var(--hov);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:11px;letter-spacing:0}
+.search{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:0 14px;width:min(320px,55%);color:var(--mu);background:rgba(255,255,255,.03)}
+.search:focus-within{border-color:var(--ac)}
+.search svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;flex:none}
+.search input{flex:1;min-width:0;background:none;border:0;color:var(--tx);font:inherit;padding:10px 0}
+.search input:focus-visible{outline:0}
+.row{display:grid;grid-template-columns:36px 1fr auto 38px auto;gap:12px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--hov)}
+.row.cur{background:color-mix(in srgb,var(--ac) 9%,transparent);box-shadow:inset 3px 0 0 var(--ac)}
+.num{color:var(--mu);font-variant-numeric:tabular-nums;font-size:13px}
+.row.cur .num{color:var(--ac)}
+.eq{display:flex;gap:2px;align-items:flex-end;height:14px}
+.eq i{width:3px;background:var(--ac);border-radius:1px;animation:eq 0.9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{0%,100%{height:3px}50%{height:14px}}
+@media (prefers-reduced-motion:reduce){.eq i{animation:none;height:10px}}
+.nm{font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.cur .nm{color:var(--soft)}
+.meta{color:var(--mu);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.dur{color:var(--mu);font-variant-numeric:tabular-nums;font-size:13px}
+.edit{background:#151110;border:1px solid var(--ac);border-radius:6px;color:var(--tx);font:inherit;font-weight:600;padding:3px 8px;width:100%}
+.fav.on{color:var(--ac)}.fav.on svg{fill:currentColor}
+.acts{display:flex;opacity:0}
+.row:hover .acts,.row:focus-within .acts{opacity:1}
+.adm{display:none!important}.isadmin .adm{display:grid!important}
+.empty{padding:48px 24px;text-align:center;color:var(--mu)}
+.empty b{display:block;color:var(--tx);font-size:16px;margin-bottom:6px}
+.pfoot{margin-top:36px;display:flex;justify-content:space-between;align-items:center;color:var(--mu);font-size:12px}
+.pfoot button{color:var(--mu);font-size:12px}.pfoot button:hover{color:var(--tx)}
+#favOnly{position:fixed;right:18px;bottom:128px;z-index:4}
+#player{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));max-width:1000px;margin:0 auto;z-index:5;background:rgba(22,18,16,.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:22px;display:grid;grid-template-columns:1fr 1.5fr 1fr;align-items:center;gap:16px;padding:12px 18px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.now{min-width:0;display:flex;gap:8px;align-items:center}
+.now .nm{font-size:14px}
+.ctr{display:flex;flex-direction:column;gap:4px;align-items:center}
+.btns{display:flex;gap:10px;align-items:center}
+.play{width:40px;height:40px;border-radius:50%;background:var(--ac);color:#1a0b05;display:grid;place-items:center;box-shadow:0 4px 18px color-mix(in srgb,var(--ac) 45%,transparent)}
+.play svg{width:16px;height:16px;fill:currentColor}
+.seek{display:flex;gap:10px;align-items:center;width:100%;color:var(--mu);font-size:11px;font-variant-numeric:tabular-nums}
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:4px;background:linear-gradient(to right,var(--ac) var(--p,0%),rgba(255,255,255,.15) var(--p,0%));cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:#fff}
+input[type=range]::-moz-range-thumb{width:12px;height:12px;border:0;border-radius:50%;background:#fff}
+.right{display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.right input{max-width:90px}
+.spd{border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--mu);background:rgba(255,255,255,.03)}
+.spd:hover{color:var(--tx)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal.open{display:flex}
+.dlg{background:#151110;border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:480px}
+.dlg h2{font-size:18px;margin-bottom:4px}
+.dlg p{color:var(--mu);margin-bottom:14px}
+.dlg textarea,.pin,.txt{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;color:var(--tx);font:inherit;padding:12px}
+.dlg textarea{height:110px;resize:vertical}
+.pin{font-size:20px;letter-spacing:.4em;text-align:center}
+.dlg textarea:focus,.pin:focus,.txt:focus{border-color:var(--ac);outline:0}
+.st{min-height:20px;margin:8px 0 14px;font-size:13px;color:var(--mu)}
+.st.err{color:#ff6b6b}
+.dlg .f{display:flex;gap:8px;justify-content:flex-end}
+.dlg .btn{padding:10px 20px;box-shadow:none}
+.fld{display:block;margin:0 0 18px}.fld>span{display:block;color:var(--mu);font-size:12px;margin-bottom:6px}
+.sw{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw button{width:30px;height:30px;border-radius:50%;border:2px solid transparent}
+.sw button.on{border-color:#fff}
+.sw input[type=color]{width:34px;height:30px;border:0;background:none;padding:0;cursor:pointer}
+#toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#fff;color:#111;padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#toast.on{opacity:1}
+@media (max-width:720px){
+.wrap{padding:24px 14px 190px}
+.ch{padding:16px}
+.row{grid-template-columns:28px 1fr 38px auto;padding:12px 14px}
+.dur{display:none}
+.acts{opacity:1}
+#player{grid-template-columns:1fr;gap:6px;padding:12px 14px}
+.right{display:none}
+#favOnly{bottom:190px}
+.now{justify-content:center}
+}
+</style>
+</head>
+<body>
+<main>
+<div class="wrap">
+  <h1 id="siteTitle">My Suno</h1>
+  <div class="bar">
+    <button class="btn" id="playAll"></button>
+    <button class="btn o" id="shuf"><svg viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>Acak</button>
+    <button class="ic rnd" id="copy" title="Salin link halaman" aria-label="Salin link halaman"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></button>
+    <button class="ic rnd" id="dl" title="Unduh lagu yang diputar" aria-label="Unduh lagu"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg></button>
+  </div>
+
+  <section class="card">
+    <div class="ch">
+      <div class="ct">DAFTAR LAGU <span class="badge" id="cnt">0</span></div>
+      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q" placeholder="Cari lagu..." aria-label="Cari lagu" autocomplete="off"></label>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <div class="pfoot"><span>budijoi 2026</span><button id="adminLink">Admin</button></div>
+</div>
+</main>
+
+<button class="ic rnd" id="favOnly" title="Tampilkan favorit saja" aria-label="Favorit saja"><svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 000-7.8z"/></svg></button>
+
+<footer id="player">
+  <div class="now"><div style="min-width:0"><div class="nm" id="nTitle">Belum ada lagu</div><div class="meta" id="nSub">Pilih lagu untuk diputar</div></div>
+    <button class="ic" id="ext" title="Buka di Suno" aria-label="Buka di Suno"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></button></div>
+  <div class="ctr">
+    <div class="btns">
+      <button class="ic" id="shuf2" title="Acak" aria-label="Acak"><svg viewBox="0 0 24 24"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg></button>
+      <button class="ic" id="prev" aria-label="Sebelumnya"><svg viewBox="0 0 24 24"><path d="M19 20L9 12l10-8zM5 19V5"/></svg></button>
+      <button class="play" id="pp" aria-label="Putar/Jeda"></button>
+      <button class="ic" id="next" aria-label="Berikutnya"><svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8zM19 5v14"/></svg></button>
+      <button class="ic" id="rep" title="Ulangi" aria-label="Ulangi"><svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg></button>
+    </div>
+    <div class="seek"><span id="cur">0:00</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Posisi"><span id="dur">0:00</span></div>
+  </div>
+  <div class="right">
+    <button class="spd" id="spd" title="Kecepatan">1×</button>
+    <button class="ic" id="mute" aria-label="Bisukan"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 010 7"/></svg></button>
+    <input type="range" id="vol" min="0" max="100" value="80" aria-label="Volume">
+    <button class="ic" id="goCur" title="Ke lagu yang diputar" aria-label="Ke lagu yang diputar"><svg viewBox="0 0 24 24"><path d="M3 6h13M3 12h13M3 18h7M16 14l5 3-5 3z"/></svg></button>
+  </div>
+</footer>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+  <div class="dlg">
+    <h2 id="mt">Tambah lagu</h2>
+    <p>Tempel URL lagu dari Suno. Untuk beberapa lagu, satu URL per baris.</p>
+    <textarea id="urls" placeholder="https://suno.com/song/…"></textarea>
+    <div class="st" id="st" role="status"></div>
+    <div class="f"><button class="btn g" id="cancel">Batal</button><button class="btn" id="add">Tambah</button></div>
+  </div>
+</div>
+
+<div class="modal" id="pinModal" role="dialog" aria-modal="true" aria-labelledby="pt">
+  <div class="dlg">
+    <h2 id="pt">Masuk admin</h2>
+    <p>Masukkan PIN admin.</p>
+    <input class="pin" id="pin" type="password" inputmode="numeric" maxlength="12" autocomplete="off" aria-label="PIN admin">
+    <div class="st" id="pinSt" role="status"></div>
+    <div class="f"><button class="btn g" data-close>Batal</button><button class="btn" id="pinOk">Masuk</button></div>
+  </div>
+</div>
+
+<div class="modal" id="admModal" role="dialog" aria-modal="true" aria-labelledby="at">
+  <div class="dlg">
+    <h2 id="at" style="margin-bottom:16px">Panel admin</h2>
+    <label class="fld"><span>Nama web</span><input class="txt" id="nameIn" maxlength="40" spellcheck="false"></label>
+    <div class="fld"><span>Warna tema</span><div class="sw" id="sw"></div></div>
+    <div class="fld"><span>Lagu</span><button class="btn g" id="admAdd">+ Tambah lagu dari URL</button></div>
+    <div class="f"><button class="btn g" id="logout">Keluar admin</button><button class="btn" data-close>Selesai</button></div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+<audio id="au" preload="metadata"></audio>
+
+<script>
+const $=s=>document.querySelector(s);
+const au=$('#au');
+const IC={play:'<svg viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></svg>',pause:'<svg viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>'};
+const HEART='<svg viewBox="0 0 24 24"><path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 00-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 000-7.8z"/></svg>';
+const UUID=/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+let songs=[],idx=-1,shuffle=false,repeat=false,editing=-1,favOnly=false;
+
+const load_=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}};
+const save_=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+songs=load_('mysuno-songs',[]);
+/* Playlist default: ?playlist=all-songs (Budijoi_Pop) */
+const ARTIST='Budijoi_Pop',DEFAULT_SLUG='all-songs';
+const PLAYLISTS={'all-songs':[
+  ["3515b1f8-66ad-4825-9aba-6cf90e71c382", "Andai Kau Rasa", 166, "pop"],
+  ["5bc5a3f3-66cb-4eab-9a25-5199aa752572", "Cinta Tak Sampai", 186, "female singer"],
+  ["e0bd464a-8906-4270-8f0f-ad9a73409b49", "Yunitaku", 176, "Male singer"],
+  ["8cb75d00-2a54-4952-9ecd-dc455e6e0d50", "Apakah Ini Cinta", 202, "bossa"],
+  ["51cd6420-de29-42e5-a2d5-88bc7a457139", "Ritual Pagi Kasbon Lagi", 114, "reggae"],
+  ["a3f43358-0f15-4288-93c0-4cd2514e9de1", "Lajur Sepeda", 207, "pop"],
+  ["5b61e314-b252-408d-87fb-93387cc539c8", "Apa Kabarmu (hey mantan)", 224, "pop"],
+  ["4cfb49e4-76e4-48be-9e3f-d56b09d9e262", "Cepat Sembuh Anakku (mellow)", 240, "indie"],
+  ["c4ae41ab-86d7-4b75-9739-9a82560b7a61", "Biar Aku Saja (acapella)", 191, "pop"],
+  ["ed293d56-0254-4076-acf0-d4c502ca11ad", "Mi Instan Pake Nasi", 179, "indie-pop"],
+  ["1c213013-2471-4394-93ac-d332a86576f6", "Sopir Angkot", 168, "Indie"],
+  ["389c7cc8-883a-40ce-8770-7f4c219b24ef", "Bandung Night Ride (BNR)", 159, "indie-pop"],
+  ["d8a0815e-ab69-4a39-bb90-600d07f976f5", "Jumat Bike Berbagi", 225, "indie-pop"],
+  ["3b3b280b-070f-43c6-b131-ce899a226c9d", "Tukang Sate Keliling", 199, "pop"],
+  ["589a9cd8-ae5b-42e6-9c28-088822a20cd5", "Kreatifitas Hidup", 167, "pop"],
+  ["efea1431-6b5b-4812-8ca3-b1d9a132131c", "Aku Punya Jalanku", 240, "citypop"],
+  ["bf6f818f-334c-4ffe-84e6-18f431ee280c", "Aku Banyak Inginnya (Korean Version)", 119, "indie"],
+  ["14fe0323-5325-437c-ba4b-afd0369f08e4", "BJ-EDM-01-MELLOW", 128, "atmospheric mellow edm"],
+  ["5bb006ce-57db-40ab-8d0e-49975e551555", "BJ-EDM-02-MELLOW", 104, "atmospheric mellow edm"],
+  ["74ae1f04-eb39-4ea6-8eae-f8702a055e90", "BJ-EDM-03-UPBEAT", 151, "upbeat rhythmic edm"],
+  ["79715ed9-9e25-4413-a152-72310ae3a881", "BJ-EDM-04-UPBEAT", 152, "upbeat rhythmic edm"],
+  ["c743dad0-b8ef-4378-88fc-eb454d9554e3", "BJ-EDM-05-BASS", 240, "bass-driven edm smooth"],
+  ["c40cd1bb-25ee-46b8-b9b2-bd80e54e5a6a", "BJ-EDM-06-BASS", 204, "bass-driven edm smooth"],
+  ["e47ce02b-d282-4bff-8425-f2ce0a061ba9", "Ku Kecewa", 156, "City pop, neo-soul, funk-pop"],
+  ["3e26ad88-6673-4946-8830-d2d8c3dc0265", "Yunitaku", 168, "city pop"],
+  ["11510f4f-6986-4cc8-834c-1cce4c99cb41", "Tukang Sate Keliling Desa", 141, "pop"],
+  ["f841d75a-9a35-4c25-9455-935dc364fe65", "Mi Instan Pake Nasi", 167, "Lo-fi pop, indie-jazz"],
+  ["ff133281-2eed-4e85-bf77-7f8723b16c31", "Biar Aku Saja (new)", 188, "pop"],
+  ["4c838b47-2a4c-4aa5-a4b2-1fd145156678", "Biar Aku Saja (new)", 172, "Pop"],
+  ["81aa3db3-7799-48c3-bf67-3f0c128f4151", "Biar Aku Saja (new)", 162, "pop"],
+  ["1689185c-fe07-49ec-8b7d-a3fead488caa", "Yunitaku", 177, "Indonesian pop"],
+  ["78e89d9f-b91f-4687-b20d-14e36065e12f", "Yunitaku", 179, "Indonesian pop"],
+  ["d82e0455-17a8-4310-990b-bb4fa634d049", "Yunitaku", 182, "Indonesian pop"],
+  ["c1561413-8f0e-4851-95d1-38c622693fff", "Yunitaku", 182, "Indonesian pop"],
+  ["1e297b57-f9d8-49cb-8419-01c61315e3cf", "Yunitaku", 198, "pop"],
+  ["894dd128-34ea-49f5-b189-b7a67fbdf3e8", "Yunitaku", 188, "pop"],
+  ["1ef58caa-61f1-4db6-bd6e-9ed2100eca19", "Yunitaku", 197, "Indonesian pop"],
+  ["1d6b39a5-5110-4f0c-9a83-216b6cb05e94", "Yunitaku", 204, "Indonesian pop"],
+  ["08b61efb-ebb1-4548-9e28-57fc0c6e82af", "Yunitaku", 174, "Indonesian pop"],
+  ["8947cad5-067d-4f07-a9c0-b4e27244907e", "Yunitaku", 187, "Indonesian pop"],
+  ["9ea35b00-3e91-4d55-8816-b14fb41c5b51", "Biar Aku Saja (new)", 192, "pop"],
+  ["be2a6733-b1d6-4539-a4b2-c10054f91028", "Biar Aku Saja (new)", 211, "pop rock"],
+  ["6deef30e-3a76-4879-848d-5837f93b77e5", "Biar Aku Saja (new)", 214, "Pop rock"],
+  ["f4b4297b-9207-49b7-aead-78c373a64421", "Mi Instan Pake Nasi", 196, "lo-fi"],
+  ["66603595-b4a5-49ac-bc3c-94faef14fc68", "Mi Instan Pake Nasi", 187, "lo-fi"],
+  ["7bc35ff7-4101-4c53-b09f-04cd1843f54d", "Mi Instan Pake Nasi", 197, "lo-fi"],
+  ["fa5dd1b1-2612-4c22-b883-a704c55593f5", "Mi Instan Pake Nasi", 192, "lo-fi"],
+  ["dea40689-dbe3-436b-b763-0e551a95d06a", "Lajur Sepeda", 149, "pop"],
+  ["a7d6d899-f901-4514-b452-40a450bc227d", "Lajur Sepeda (Parkir Sembarangan)", 134, "Pop"],
+  ["5bd797b4-3919-4c12-86f5-2a29b4271047", "Cinta Tak Sampai", 198, "lo-fi"]
+]};
+const qSlug=new URLSearchParams(location.search).get('playlist');
+const slug=PLAYLISTS[qSlug]?qSlug:DEFAULT_SLUG;
+let removed=load_('mysuno-removed',[]);
+(function seed(){
+  const have=new Set(songs.map(x=>x.id));let n=0;
+  PLAYLISTS[slug].forEach(([id,title,dur,tags])=>{if(!have.has(id)&&!removed.includes(id)){songs.push({id,title,artist:ARTIST,tags,dur,fav:false});n++}});
+  if(n)save_('mysuno-songs',songs);
+})();
+let siteName=load_('mysuno-name','My Suno'),theme=load_('mysuno-theme','#ff6b3d'),admin=false;
+const PIN='123456';
+try{admin=sessionStorage.getItem('mysuno-admin')==='1'}catch(e){}
+function applyName(){const n=(siteName||'').trim()||'My Suno';$('#siteTitle').textContent=n;document.title=n}
+function applyTheme(){document.documentElement.style.setProperty('--ac',theme)}
+function applyAdmin(){document.body.classList.toggle('isadmin',admin);$('#adminLink').textContent=admin?'Panel admin':'Admin'}
+applyName();applyTheme();applyAdmin();
+
+const audioUrl=id=>`https://cdn1.suno.ai/${id}.mp3`;
+const audioSrcs=id=>[`https://cdn1.suno.ai/${id}.mp3`,`https://cdn2.suno.ai/${id}.mp3`,`https://audiopipe.suno.ai/?item_id=${id}`];
+let tryN=0;
+const fmt=t=>{if(!isFinite(t)||!t)return'0:00';return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let tt;function toast(t,ms){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('on'),ms||2000)}
+
+/* Ambil judul dari Suno (lewat proxy CORS jika diperlukan) */
+const PROXIES=[u=>u,u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://corsproxy.io/?'+encodeURIComponent(u)];
+async function fetchPage(url){
+  for(const p of PROXIES){
+    const c=new AbortController(),t=setTimeout(()=>c.abort(),8000);
+    try{const r=await fetch(p(url),{signal:c.signal});if(r.ok){const h=await r.text();if(/og:title|<title/i.test(h))return h}}catch(e){}finally{clearTimeout(t)}
+  }
+  return null;
+}
+function parseMeta(html){
+  const d=new DOMParser().parseFromString(html,'text/html');
+  let t=d.querySelector('meta[property="og:title"]')?.content||d.title||'';
+  t=t.replace(/\s*[|–-]\s*Suno.*$/i,'').trim();
+  let artist='';
+  const m=t.match(/^(.*?)\s+by\s+(@?[\w.\-]+)\s*$/i);
+  if(m){t=m[1].trim();artist=m[2].startsWith('@')?m[2]:'@'+m[2]}
+  return{title:t,artist}
+}
+async function resolve(raw){
+  let id=(raw.match(UUID)||[])[0],html=null;
+  const isShort=/suno\.com\/s\//i.test(raw);
+  if(!id&&!isShort)throw new Error('URL tidak dikenali');
+  html=await fetchPage(id?`https://suno.com/song/${id.toLowerCase()}`:raw);
+  if(!id){id=html&&(html.match(UUID)||[])[0];if(!id)throw new Error('Link pendek tidak bisa dibaca')}
+  id=id.toLowerCase();
+  const m=html?parseMeta(html):{title:'',artist:''};
+  return{id,title:m.title||'Lagu '+id.slice(0,6),artist:m.artist,auto:!!m.title};
+}
+
+/* Modal tambah lagu */
+const modal=$('#modal'),st=$('#st');
+const setSt=(t,e)=>{st.textContent=t;st.className='st'+(e?' err':'')};
+function openM(){modal.classList.add('open');setSt('');$('#urls').value='';$('#urls').focus()}
+function closeM(){modal.classList.remove('open')}
+$('#cancel').onclick=closeM;
+modal.onclick=e=>{if(e.target===modal)closeM()};
+$('#add').onclick=async()=>{
+  if(!admin)return;
+  const lines=$('#urls').value.split(/\s+/).filter(Boolean);
+  if(!lines.length)return setSt('Tempel minimal satu URL Suno.',1);
+  const btn=$('#add');btn.disabled=true;
+  let ok=0,fail=0,noTitle=0;
+  for(let i=0;i<lines.length;i++){
+    setSt(`Mengambil lagu ${i+1} dari ${lines.length}…`);
+    try{
+      const s=await resolve(lines[i]);
+      if(songs.some(x=>x.id===s.id))continue;
+      songs.push({id:s.id,title:s.title,artist:s.artist,dur:0,fav:false});
+      if(!s.auto)noTitle++;
+      ok++;
+    }catch(e){fail++}
+  }
+  btn.disabled=false;
+  save_('mysuno-songs',songs);render();fillDur();
+  if(!ok){setSt(fail?'URL tidak valid atau tidak bisa dibaca.':'Lagu sudah ada di playlist.',1);return}
+  closeM();
+  if(noTitle)alert(noTitle+' judul tidak bisa diambil otomatis. Ubah lewat ikon pensil.');
+};
+
+/* Daftar lagu */
+function render(){
+  $('#cnt').textContent=songs.length;
+  const q=$('#q').value.trim().toLowerCase();
+  const items=songs.map((s,i)=>({s,i})).filter(({s})=>(!favOnly||s.fav)&&(!q||(s.title+' '+(s.artist||'')).toLowerCase().includes(q)));
+  const l=$('#list'),playing=!au.paused;
+  if(!songs.length){l.innerHTML=`<div class="empty"><b>Playlist masih kosong</b>${admin?'Buka Panel admin lalu tambah lagu dari URL Suno.':'Belum ada lagu yang ditambahkan.'}</div>`;return}
+  if(!items.length){l.innerHTML='<div class="empty"><b>Tidak ada hasil</b>Coba kata kunci lain.</div>';return}
+  l.innerHTML=items.map(({s,i})=>`
+  <div class="row${i===idx?' cur':''}" data-i="${i}">
+    <div class="num">${i===idx&&playing?'<div class="eq"><i></i><i></i><i></i></div>':String(i+1).padStart(2,'0')}</div>
+    <div style="min-width:0">${editing===i?`<input class="edit" value="${esc(s.title)}" maxlength="120" aria-label="Judul lagu">`:`<div class="nm">${esc(s.title)}</div>`}<div class="meta">${esc(s.tags||s.artist||'Suno')}</div></div>
+    <div class="dur">${s.dur?fmt(s.dur):''}</div>
+    <button class="ic fav${s.fav?' on':''}" data-a="fav" title="Favorit" aria-label="Favorit">${HEART}</button>
+    <div class="acts">
+      <button class="ic adm" data-a="ren" title="Ubah judul" aria-label="Ubah judul"><svg viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg></button>
+      <button class="ic" data-a="open" title="Buka di Suno" aria-label="Buka di Suno"><svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></button>
+      <button class="ic adm" data-a="del" title="Hapus" aria-label="Hapus"><svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>
+    </div>
+  </div>`).join('');
+  const inp=l.querySelector('.edit');
+  if(inp){inp.focus();inp.select();
+    const done=ok=>{if(editing<0)return;const i=editing;editing=-1;const v=inp.value.trim();if(ok&&v){songs[i].title=v;save_('mysuno-songs',songs);if(i===idx)$('#nTitle').textContent=v}render()};
+    inp.onkeydown=e=>{if(e.key==='Enter')done(true);if(e.key==='Escape')done(false)};
+    inp.onblur=()=>done(true);
+  }
+}
+/* Durasi lagu dibaca satu per satu */
+let durBusy=false;
+async function fillDur(){
+  if(durBusy)return;durBusy=true;
+  for(const s of songs){
+    if(s.dur)continue;
+    await new Promise(res=>{
+      const a=new Audio();a.preload='metadata';
+      const t=setTimeout(()=>{a.src='';res()},8000);
+      a.onloadedmetadata=()=>{clearTimeout(t);s.dur=a.duration||0;const el=document.querySelector(`.row[data-i="${songs.indexOf(s)}"] .dur`);if(el&&s.dur)el.textContent=fmt(s.dur);res()};
+      a.onerror=()=>{clearTimeout(t);res()};
+      a.src=audioUrl(s.id);
+    });
+  }
+  save_('mysuno-songs',songs);durBusy=false;
+}
+
+/* Player */
+function label(){
+  $('#playAll').innerHTML=(idx>=0&&!au.paused)?IC.pause+'Jeda':IC.play+(idx>=0?'Lanjutkan':'Putar');
+}
+function load(i,play=true){
+  if(i<0||i>=songs.length)return;
+  idx=i;const s=songs[i];
+  tryN=0;au.src=audioSrcs(s.id)[0];au.playbackRate=rates[ri];
+  $('#nTitle').textContent=s.title;$('#nSub').textContent=s.artist||'Suno';
+  if('mediaSession' in navigator)navigator.mediaSession.metadata=new MediaMetadata({title:s.title,artist:s.artist||'Suno',artwork:[{src:`https://cdn2.suno.ai/image_large_${s.id}.jpeg`}]});
+  if(play)au.play().catch(e=>{if(e.name==='NotAllowedError')toast('Tekan tombol putar untuk memulai')});
+  render();label();
+}
+function step(d){
+  if(!songs.length)return;
+  let n;
+  if(shuffle&&songs.length>1){do{n=Math.floor(Math.random()*songs.length)}while(n===idx)}
+  else n=(idx+d+songs.length)%songs.length;
+  load(n);
+}
+function toggle(){if(idx<0){if(songs.length)load(shuffle?Math.floor(Math.random()*songs.length):0);return}au.paused?au.play():au.pause()}
+function setShuffle(v){shuffle=v;$('#shuf').classList.toggle('on',v);$('#shuf2').classList.toggle('on',v)}
+
+$('#playAll').onclick=toggle;
+$('#pp').onclick=toggle;
+$('#next').onclick=()=>step(1);
+$('#prev').onclick=()=>{au.currentTime>3?au.currentTime=0:step(-1)};
+$('#shuf').onclick=()=>{setShuffle(!shuffle);if(shuffle&&au.paused&&songs.length)step(1)};
+$('#shuf2').onclick=()=>setShuffle(!shuffle);
+$('#rep').onclick=e=>{repeat=!repeat;e.currentTarget.classList.toggle('on',repeat)};
+const rates=[1,1.25,1.5,2,0.75];let ri=0;
+$('#spd').onclick=()=>{ri=(ri+1)%rates.length;au.playbackRate=rates[ri];$('#spd').textContent=rates[ri]+'×'};
+$('#mute').onclick=e=>{au.muted=!au.muted;e.currentTarget.classList.toggle('on',au.muted)};
+$('#goCur').onclick=()=>{const r=document.querySelector('.row.cur');if(r)r.scrollIntoView({behavior:'smooth',block:'center'})};
+$('#ext').onclick=()=>{if(idx>=0)window.open('https://suno.com/song/'+songs[idx].id,'_blank','noopener')};
+$('#favOnly').onclick=e=>{favOnly=!favOnly;e.currentTarget.classList.toggle('on',favOnly);render()};
+$('#q').oninput=render;
+$('#copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.href.split('?')[0].split('#')[0]+'?playlist='+slug);toast('Link disalin')}catch(e){toast('Tidak bisa menyalin link')}};
+$('#dl').onclick=async()=>{
+  const i=idx>=0?idx:0;if(!songs[i])return toast('Belum ada lagu');
+  toast('Menyiapkan unduhan…');
+  const a=document.createElement('a');a.download=songs[i].title+'.mp3';
+  try{const r=await fetch(audioUrl(songs[i].id));const b=await r.blob();a.href=URL.createObjectURL(b);a.click();URL.revokeObjectURL(a.href)}
+  catch(e){window.open(audioUrl(songs[i].id),'_blank','noopener')}
+};
+
+$('#list').onclick=e=>{
+  if(e.target.tagName==='INPUT')return;
+  const row=e.target.closest('.row');if(!row)return;
+  const i=+row.dataset.i,a=e.target.closest('[data-a]')?.dataset.a;
+  if((a==='ren'||a==='del')&&!admin)return;
+  if(a==='fav'){songs[i].fav=!songs[i].fav;save_('mysuno-songs',songs);render()}
+  else if(a==='del'){
+    if(!confirm('Hapus "'+songs[i].title+'" dari playlist?'))return;
+    removed.push(songs[i].id);save_('mysuno-removed',removed);
+    songs.splice(i,1);
+    if(i===idx){au.pause();au.removeAttribute('src');idx=-1;$('#nTitle').textContent='Belum ada lagu';$('#nSub').textContent='Pilih lagu untuk diputar'}
+    else if(i<idx)idx--;
+    save_('mysuno-songs',songs);render();label();
+  }else if(a==='ren'){editing=i;render()}
+  else if(a==='open'){window.open('https://suno.com/song/'+songs[i].id,'_blank','noopener')}
+  else{i===idx?toggle():load(i)}
+};
+
+au.onplay=au.onpause=()=>{$('#pp').innerHTML=au.paused?IC.play:IC.pause;label();render()};
+const found={};
+async function discover(id){
+  if(id in found)return found[id];
+  const h=await fetchPage('https://suno.com/song/'+id);
+  let u=null;
+  if(h){
+    const m=h.match(/property=["']og:audio["']\s+content=["']([^"']+)/i)||h.match(/content=["']([^"']+)["']\s+property=["']og:audio["']/i)||h.match(/https:\/\/[^"'\s\\]+\.(?:mp3|m4a)(?:\?[^"'\s\\]*)?/i);
+    if(m){u=(m[1]||m[0]).replace(/&amp;/g,'&');if(/sil-100/.test(u))u=null}
+  }
+  return found[id]=u;
+}
+au.onerror=async()=>{
+  if(idx<0||!au.getAttribute('src'))return;
+  const my=idx,l=audioSrcs(songs[my].id);
+  if(++tryN<l.length){au.src=l[tryN];au.play().catch(()=>{});return}
+  if(tryN===l.length){
+    toast('Mencari alamat audio dari Suno…');
+    const u=await discover(songs[my].id);
+    if(my!==idx)return;
+    if(u){au.src=u;au.play().catch(()=>{});return}
+  }
+  toast('Audio gagal dimuat (kode '+(au.error?au.error.code:0)+'). Buka file langsung di browser atau hosting, bukan di pratinjau.',6000);
+};
+au.onended=()=>{repeat?(au.currentTime=0,au.play()):step(1)};
+au.onloadedmetadata=()=>{$('#dur').textContent=fmt(au.duration)};
+au.ontimeupdate=()=>{
+  if(!au.duration)return;
+  const p=au.currentTime/au.duration*1000,s=$('#seek');
+  s.value=p;s.style.setProperty('--p',p/10+'%');$('#cur').textContent=fmt(au.currentTime);
+};
+$('#seek').oninput=e=>{if(au.duration)au.currentTime=e.target.value/1000*au.duration;e.target.style.setProperty('--p',e.target.value/10+'%')};
+$('#vol').oninput=e=>{au.volume=e.target.value/100;e.target.style.setProperty('--p',e.target.value+'%')};
+$('#vol').dispatchEvent(new Event('input'));
+document.addEventListener('keydown',e=>{
+  if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)&&document.activeElement.type!=='range')return;
+  if(e.code==='Space'){e.preventDefault();toggle()}
+  if(e.code==='ArrowRight'&&e.shiftKey)step(1);
+  if(e.code==='ArrowLeft'&&e.shiftKey)step(-1);
+});
+if('mediaSession' in navigator){navigator.mediaSession.setActionHandler('nexttrack',()=>step(1));navigator.mediaSession.setActionHandler('previoustrack',()=>step(-1))}
+
+/* Admin */
+const pinM=$('#pinModal'),admM=$('#admModal');
+const openEl=m=>m.classList.add('open'),closeEl=m=>m.classList.remove('open');
+[pinM,admM].forEach(m=>m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-close]'))closeEl(m)}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal.open').forEach(closeEl)});
+const COLORS=['#ff6b3d','#ff3d7f','#8b5cf6','#3b82f6','#22c55e','#eab308'];
+function drawSw(){
+  $('#sw').innerHTML=COLORS.map(c=>`<button style="background:${c}" data-c="${c}" class="${c===theme?'on':''}" aria-label="Warna ${c}"></button>`).join('')+`<input type="color" id="cust" value="${theme}" aria-label="Warna kustom">`;
+  $('#cust').oninput=e=>setTheme(e.target.value,false);
+}
+function setTheme(c,redraw){theme=c;save_('mysuno-theme',c);applyTheme();if(redraw)drawSw()}
+$('#sw').onclick=e=>{const c=e.target.dataset.c;if(c)setTheme(c,true)};
+function openAdmin(){$('#nameIn').value=siteName;drawSw();openEl(admM)}
+$('#nameIn').oninput=e=>{siteName=e.target.value;save_('mysuno-name',siteName);applyName()};
+$('#admAdd').onclick=()=>{closeEl(admM);openM()};
+$('#logout').onclick=()=>{admin=false;try{sessionStorage.removeItem('mysuno-admin')}catch(e){};applyAdmin();closeEl(admM);editing=-1;render()};
+$('#adminLink').onclick=()=>{if(admin)openAdmin();else{$('#pin').value='';setPinSt('');openEl(pinM);$('#pin').focus()}};
+let fails=0,lockUntil=0;
+function setPinSt(t,err){const e=$('#pinSt');e.textContent=t;e.className='st'+(err?' err':'')}
+function tryPin(){
+  if(Date.now()<lockUntil)return setPinSt('Terlalu banyak percobaan. Coba lagi sebentar.',1);
+  if($('#pin').value===PIN){
+    admin=true;fails=0;try{sessionStorage.setItem('mysuno-admin','1')}catch(e){}
+    applyAdmin();closeEl(pinM);render();openAdmin();
+  }else{
+    fails++;$('#pin').value='';
+    if(fails>=5){lockUntil=Date.now()+30000;fails=0;setPinSt('Terlalu banyak percobaan. Coba lagi 30 detik lagi.',1)}
+    else setPinSt('PIN salah.',1);
+  }
+}
+$('#pinOk').onclick=tryPin;
+$('#pin').onkeydown=e=>{if(e.key==='Enter')tryPin()};
+
+$('#pp').innerHTML=IC.play;
+label();render();fillDur();
+</script>
+</body>
+</html>
