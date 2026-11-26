@@ -10,15 +10,21 @@
   // --- Data ---
   const dataEl = document.getElementById('stations-data');
   const DATA_URL = 'stations.json';
-  const AUTO_REFRESH_MS = 6 * 60 * 60 * 1000;
+  const AUTO_REFRESH_MS = 24 * 60 * 60 * 1000;
   const LAST_REFRESH_KEY = 'tvradio_last_refresh';
   const OFFLINE_KEY = 'tvradio_offline_marks';
+  const EXCLUDE_KEY = 'tvradio_exclude_geo';
   const VIEW_KEY = 'tvradio_view';
   const HIDE_KEY = 'tvradio_hide_offline';
   const SORT_KEY = 'tvradio_tv_sort';
   const CACHE_KEY = 'tvradio_cache_video';
   const VIDEO_CACHE_NAME = 'tvradio-video-v1';
-  const MAX_CACHE_ENTRIES = 160;
+  const CACHE_PRESETS = {
+    off: { enabled: false, maxEntries: 0, prefetchSegments: 0, prefetchBudgetMs: 0, maxBufferLength: 45, maxMaxBufferLength: 90, maxBufferSize: 45 * 1000 * 1000 },
+    small: { enabled: true, maxEntries: 80, prefetchSegments: 4, prefetchBudgetMs: 2500, maxBufferLength: 30, maxMaxBufferLength: 60, maxBufferSize: 30 * 1000 * 1000 },
+    medium: { enabled: true, maxEntries: 180, prefetchSegments: 8, prefetchBudgetMs: 4500, maxBufferLength: 60, maxMaxBufferLength: 120, maxBufferSize: 60 * 1000 * 1000 },
+    large: { enabled: true, maxEntries: 420, prefetchSegments: 14, prefetchBudgetMs: 7000, maxBufferLength: 90, maxMaxBufferLength: 180, maxBufferSize: 90 * 1000 * 1000 },
+  };
   const ALT_SOURCES = [
     'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8',
     'https://m3u8-player.net/id/free-indonesia-iptv-playlist/',
@@ -58,7 +64,7 @@
   const hideOfflineInput = document.getElementById('hide-offline');
   const viewToggle = document.getElementById('view-toggle');
   const sortGroup = document.getElementById('sort-group');
-  const cacheToggle = document.getElementById('cache-video');
+  const cacheSizeSelect = document.getElementById('cache-size');
 
   // Donation modal
   const donateBtn = document.getElementById('donate-btn');
@@ -85,8 +91,12 @@
   const videoTitle = document.getElementById('video-title');
   const videoSub = document.getElementById('video-sub');
   const videoStatus = document.getElementById('video-status');
+  const videoOverlay = document.getElementById('video-overlay');
+  const videoOverlayText = document.getElementById('video-overlay-text');
   const videoClose = document.getElementById('video-close');
   const videoBackdrop = document.getElementById('video-backdrop');
+  const videoPrev = document.getElementById('video-prev');
+  const videoNext = document.getElementById('video-next');
 
   // --- State ---
   let currentStation = null;
@@ -94,15 +104,43 @@
   let hls = null;
   let videoHls = null;
   let videoStation = null;
-  let pageFilter = 'all';
+  let pageFilter = isTv ? 'nasional' : 'all';
   let searchQuery = '';
   let provinceFilter = '';
   let gridView = (localStorage.getItem(VIEW_KEY) || 'grid') === 'grid';
   let hideOffline = (localStorage.getItem(HIDE_KEY) || 'true') === 'true';
   let tvSort = localStorage.getItem(SORT_KEY) || 'name';
-  let cacheVideo = localStorage.getItem(CACHE_KEY) === 'true';
+  function normalizeCacheSize(v) {
+    if (v === 'true') return 'medium';
+    if (v === 'false' || !v) return 'off';
+    return CACHE_PRESETS[v] ? v : 'off';
+  }
+  let cacheSize = normalizeCacheSize(localStorage.getItem(CACHE_KEY));
+  let cacheVideo = CACHE_PRESETS[cacheSize].enabled;
   let prefetchAbort = null;
   let videoSession = 0;
+  let bufferWatchdog = null;
+  let bufferWatchdog2 = null;
+  let bufferStartAt = 0;
+  let bufferStartStationId = null;
+  const bufferStats = {}; // stationId -> ms
+  function bufferLevel(ms) {
+    if (!ms || ms <= 0) return '';
+    if (ms < 3000) return 'green';
+    if (ms < 5000) return 'yellow';
+    return 'red';
+  }
+  function refreshBufferLine(id) {
+    const row = listEl ? listEl.querySelector(`.row[data-id="${id}"]`) : null;
+    if (!row) return;
+    let line = row.querySelector('.row-buffer-line');
+    const ms = bufferStats[id];
+    const lvl = bufferLevel(ms);
+    if (!lvl) { if (line) line.remove(); return; }
+    if (!line) { line = document.createElement('span'); line.className = 'row-buffer-line'; row.appendChild(line); }
+    line.className = 'row-buffer-line ' + lvl;
+    line.title = `Buffer: ${(ms / 1000).toFixed(1)}s`;
+  }
   let altStreamsReady = false;
   let altByName = new Map();
 
@@ -248,6 +286,26 @@
   function saveOfflineMarks() {
     try { localStorage.setItem(OFFLINE_KEY, JSON.stringify(offlineMarks)); } catch { /* ignore */ }
   }
+  function loadExcludeMarks() {
+    try { return JSON.parse(localStorage.getItem(EXCLUDE_KEY) || '{}') || {}; } catch { return {}; }
+  }
+  function saveExcludeMarks() {
+    try { localStorage.setItem(EXCLUDE_KEY, JSON.stringify(excludeMarks)); } catch { /* ignore */ }
+  }
+  let excludeMarks = loadExcludeMarks();
+  function isExcluded(station) {
+    return Boolean(station && excludeMarks[station.id]);
+  }
+  function excludeStation(station, reason) {
+    if (!station) return;
+    excludeMarks[station.id] = { at: Date.now(), reason: reason || 'Geo-block/CORS' };
+    saveExcludeMarks();
+  }
+  function unexcludeStation(station) {
+    if (!station || !excludeMarks[station.id]) return;
+    delete excludeMarks[station.id];
+    saveExcludeMarks();
+  }
   function statusOf(station) {
     if (offlineMarks[station.id]) return 'offline';
     return station.status || 'unknown';
@@ -261,17 +319,30 @@
     }
     return 'Kanal ditandai offline.';
   }
+  const GEO_BLOCK_CODES = new Set([400, 401, 403, 405, 406, 429, 451]);
+  function isGeoBlocked(station) {
+    if (!station) return false;
+    const code = Number(station.httpCode || 0);
+    if (GEO_BLOCK_CODES.has(code)) return true;
+    const mark = offlineMarks[station.id];
+    const reason = String((mark && mark.reason) || '');
+    return /geo-block|cors|alternatif gagal/i.test(reason);
+  }
   function markOffline(station, reason) {
     if (!station) return;
     offlineMarks[station.id] = { at: Date.now(), reason };
     saveOfflineMarks();
+    if (/geo-block|cors/i.test(String(reason || '')) || GEO_BLOCK_CODES.has(Number(station.httpCode || 0))) {
+      excludeStation(station, reason || 'Geo-block/CORS');
+    }
     refreshStatusUI();
   }
   function markOnline(station) {
-    if (!station || !offlineMarks[station.id]) return;
-    delete offlineMarks[station.id];
-    saveOfflineMarks();
-    refreshStatusUI();
+    if (!station) return;
+    let changed = false;
+    if (offlineMarks[station.id]) { delete offlineMarks[station.id]; saveOfflineMarks(); changed = true; }
+    if (excludeMarks[station.id]) { delete excludeMarks[station.id]; saveExcludeMarks(); changed = true; }
+    if (changed) refreshStatusUI();
   }
 
   function updateStatusBadges() {
@@ -380,6 +451,17 @@
       }
       lastRefresh = Date.now();
       try { localStorage.setItem(LAST_REFRESH_KEY, String(lastRefresh)); } catch { /* ignore */ }
+      let changedExclude = false;
+      fresh.forEach((s) => {
+        if (excludeMarks[s.id]) {
+          const code = Number(s.httpCode || 0);
+          if (s.status === 'online' && !GEO_BLOCK_CODES.has(code)) {
+            delete excludeMarks[s.id];
+            changedExclude = true;
+          }
+        }
+      });
+      if (changedExclude) saveExcludeMarks();
       refreshStatusUI();
       if (window.scrollY !== scrollY) window.scrollTo(0, scrollY);
       if (manual) toast('Daftar diperbarui');
@@ -403,6 +485,12 @@
     return 'Indonesia';
   }
 
+  function flagEmoji(cc) {
+    const code = String(cc || '').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return '';
+    return String.fromCodePoint(...[...code].map((c) => 127397 + c.charCodeAt(0)));
+  }
+
   function matchesSearch(s, q) {
     if (!q) return true;
     const needle = q.toLowerCase();
@@ -413,6 +501,7 @@
 
   function matchesFilter(s, filter) {
     if (filter === 'all') return true;
+    if (filter === 'favorit') return isFavorite(s.id);
     return s.category === filter;
   }
 
@@ -455,7 +544,7 @@
 
   function visibleStation(s) {
     return s.type === page &&
-      !(hideOffline && statusOf(s) === 'offline') &&
+      !(hideOffline && (statusOf(s) === 'offline' || isGeoBlocked(s) || isExcluded(s))) &&
       (!provinceFilter || (s.province || 'Indonesia') === provinceFilter) &&
       matchesFilter(s, pageFilter) &&
       matchesSearch(s, searchQuery);
@@ -494,11 +583,13 @@
       : status === 'online'
         ? '<span class="row-status online" title="Stream aktif saat pengecekan terakhir"></span>'
         : '';
+    const flag = flagEmoji(station.country);
+    const flagHtml = flag ? `<span class="row-flag" title="${escapeHtml(station.country || '')}">${flag}</span>` : '';
 
     row.innerHTML = `
       <div class="row-logo">${logo}</div>
       <div class="row-main">
-        <span class="row-name">${escapeHtml(station.name)}</span>
+        <span class="row-name">${flagHtml}${escapeHtml(station.name)}</span>
         <span class="row-region">${escapeHtml(regionOf(station))}</span>
       </div>
       <div class="row-actions">
@@ -524,10 +615,12 @@
     const toggleFav = (e) => {
       if (e) e.stopPropagation();
       toggleFavorite(station.id);
-      const active = isFavorite(station.id);
-      favBtn.classList.toggle('active', active);
-      favBtn.textContent = active ? '♥' : '♡';
-      favBtn.setAttribute('aria-pressed', String(active));
+      render();
+      const rowAfter = listEl.querySelector(`.row[data-id="${station.id}"]`);
+      if (rowAfter) {
+        const btn = rowAfter.querySelector('.row-fav');
+        if (btn) btn.focus();
+      }
     };
     row.addEventListener('click', (e) => {
       if (e.target.closest('.row-fav')) return;
@@ -545,6 +638,16 @@
     playBtn.addEventListener('click', play);
     favBtn.addEventListener('click', toggleFav);
 
+    if (isTv) {
+      const ms = bufferStats[station.id];
+      const lvl = bufferLevel(ms);
+      if (lvl) {
+        const line = document.createElement('span');
+        line.className = 'row-buffer-line ' + lvl;
+        line.title = `Buffer: ${(ms / 1000).toFixed(1)}s`;
+        row.appendChild(line);
+      }
+    }
     if (currentStation && currentStation.id === station.id) row.classList.add('is-playing');
     return row;
   }
@@ -552,7 +655,37 @@
   function render() {
     const items = sortItems(stations.filter(visibleStation));
     const frag = document.createDocumentFragment();
-    items.forEach((s) => frag.appendChild(createRow(s)));
+    const groupByAlpha = !gridView && isTv && tvSort === 'name';
+    const showFavSection = pageFilter !== 'favorit';
+    const favItems = showFavSection ? items.filter((s) => isFavorite(s.id)) : [];
+    const restItems = showFavSection ? items.filter((s) => !isFavorite(s.id)) : items;
+
+    if (favItems.length) {
+      const sep = document.createElement('div');
+      sep.className = 'list-group fav-group';
+      sep.setAttribute('role', 'separator');
+      sep.textContent = '★ Favorit';
+      frag.appendChild(sep);
+      favItems.forEach((s) => frag.appendChild(createRow(s)));
+    }
+
+    let lastLetter = '';
+    restItems.forEach((s) => {
+      if (groupByAlpha) {
+        const raw = String(s.name || '').trim();
+        const ch = raw ? raw[0].toUpperCase() : '#';
+        const letter = /[A-Z0-9]/.test(ch) ? (/[0-9]/.test(ch) ? '0-9' : ch) : '#';
+        if (letter !== lastLetter) {
+          lastLetter = letter;
+          const sep = document.createElement('div');
+          sep.className = 'list-group';
+          sep.setAttribute('role', 'separator');
+          sep.textContent = letter;
+          frag.appendChild(sep);
+        }
+      }
+      frag.appendChild(createRow(s));
+    });
     listEl.replaceChildren(frag);
 
     emptyEl.hidden = items.length !== 0;
@@ -619,7 +752,34 @@
     return audio;
   }
   function setStatus(msg) { if (fpStatus) fpStatus.textContent = msg; }
-  function setVideoStatus(msg) { if (videoStatus) videoStatus.textContent = msg; }
+  function setOverlayLevel(level) {
+    if (!videoOverlay) return;
+    videoOverlay.classList.remove('level-green', 'level-yellow', 'level-red');
+    if (level) videoOverlay.classList.add('level-' + level);
+  }
+  function showVideoOverlay(msg, level) {
+    if (videoOverlayText) videoOverlayText.textContent = msg || 'Memuat…';
+    if (level !== undefined) setOverlayLevel(level || '');
+    if (videoOverlay) videoOverlay.hidden = false;
+  }
+  function hideVideoOverlay() {
+    if (videoOverlay) { videoOverlay.hidden = true; setOverlayLevel(''); }
+  }
+  function setVideoStatus(msg) {
+    if (videoStatus) videoStatus.textContent = msg;
+    const m = String(msg || '');
+    const watchdogActive = !!(bufferWatchdog || bufferWatchdog2);
+    if (/memuat|buffer|menyimpan|cache|mencoba alternatif|menghubungkan/i.test(m)) {
+      if (!watchdogActive) showVideoOverlay(m);
+      else if (videoOverlayText) videoOverlayText.textContent = m;
+    } else if (/sedang ditonton|klik tombol putar|dijeda|stream berakhir/i.test(m)) {
+      hideVideoOverlay();
+      if (/sedang ditonton/i.test(m)) clearBufferWatchdog();
+    } else if (/gagal|tidak tersedia|offline|geo-block/i.test(m)) {
+      hideVideoOverlay();
+    }
+    if (/memuat stream|buffer|mencoba alternatif/i.test(m) && !/menyimpan video ke cache/i.test(m)) armBufferWatchdog();
+  }
 
   function stopAudio() {
     if (hls) { try { hls.destroy(); } catch { /* ignore */ } hls = null; }
@@ -636,11 +796,14 @@
     return caches.open(VIDEO_CACHE_NAME);
   }
 
+  function cachePreset() { return CACHE_PRESETS[cacheSize] || CACHE_PRESETS.off; }
   async function pruneVideoCache() {
     try {
+      const preset = cachePreset();
+      if (!preset.enabled) return;
       const cache = await openVideoCache();
       const keys = await cache.keys();
-      const extra = keys.length - MAX_CACHE_ENTRIES;
+      const extra = keys.length - preset.maxEntries;
       for (let i = 0; i < extra; i++) await cache.delete(keys[i]);
     } catch { /* ignore */ }
   }
@@ -723,22 +886,32 @@
       }
     }
     if (!playlistText) return { levelIndex, cached: 0 };
-    const segments = parseSegments(playlistText, playlistUrl).slice(0, 10);
+    const preset = cachePreset();
+    const segments = parseSegments(playlistText, playlistUrl).slice(0, preset.prefetchSegments || 8);
     let done = 0;
-    for (const seg of segments) {
-      if (signal && signal.aborted) break;
-      if (await cache.match(seg)) { done++; continue; }
-      setVideoStatus(`Menyimpan video ke cache… ${Math.round((done / segments.length) * 100)}%`);
-      try {
-        const res = await fetchWithTimeout(seg, 12000, signal);
-        if (!res.ok) continue;
-        const buf = await res.arrayBuffer();
-        await cache.put(seg, new Response(buf, {
-          headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp2t' },
-        }));
-        done++;
-      } catch { /* lanjut ke segmen lain */ }
-    }
+    let idx = 0;
+    const workers = Array.from({ length: Math.min(3, segments.length || 1) }, async () => {
+      while (idx < segments.length) {
+        if (signal && signal.aborted) break;
+        const i = idx++;
+        const seg = segments[i];
+        try {
+          if (await cache.match(seg)) { done++; continue; }
+        } catch { /* ignore */ }
+        setVideoStatus(`Menyimpan video ke cache… ${Math.round((done / segments.length) * 100)}%`);
+        try {
+          const res = await fetchWithTimeout(seg, 10000, signal);
+          if (!res.ok) continue;
+          const buf = await res.arrayBuffer();
+          await cache.put(seg, new Response(buf, {
+            headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp2t' },
+          }));
+          done++;
+          setVideoStatus(`Menyimpan video ke cache… ${Math.round((done / segments.length) * 100)}%`);
+        } catch { /* lanjut */ }
+      }
+    });
+    await Promise.all(workers);
     await pruneVideoCache();
     return { levelIndex, cached: done };
   }
@@ -816,8 +989,74 @@
     return CachingLoader;
   }
 
+  function visibleTvItems() {
+    return sortItems(stations.filter(visibleStation));
+  }
+  function glowNavBtn(btn) {
+    if (!btn) return;
+    btn.classList.add('glow');
+    clearTimeout(btn._glowTimer);
+    btn._glowTimer = setTimeout(() => btn.classList.remove('glow'), 350);
+  }
+  function clearBufferWatchdog() {
+    if (bufferWatchdog) { clearTimeout(bufferWatchdog); bufferWatchdog = null; }
+    if (bufferWatchdog2) { clearTimeout(bufferWatchdog2); bufferWatchdog2 = null; }
+  }
+  function armBufferWatchdog() {
+    if (bufferWatchdog || bufferWatchdog2) return; // sudah berjalan untuk sesi ini
+    if (!videoStation || videoModal.hidden) return;
+    const station = videoStation;
+    const session = videoSession;
+    bufferStartAt = Date.now();
+    bufferStartStationId = station.id;
+    showVideoOverlay('Memuat video…', 'green');
+
+    bufferWatchdog = setTimeout(() => {
+      bufferWatchdog = null;
+      if (session !== videoSession || videoStation !== station || videoModal.hidden) return;
+      if (videoPlayer && videoPlayer.paused) return;
+      bufferStats[station.id] = 3000;
+      refreshBufferLine(station.id);
+      showVideoOverlay('Memuat lambat, pindah kanal…', 'yellow');
+      if (videoStatus) videoStatus.textContent = 'Memuat lambat, pindah kanal…';
+      setTimeout(() => {
+        if (session !== videoSession || videoStation !== station) return;
+        if (videoOverlay && videoOverlay.hidden) return;
+        if (videoPlayer && !videoPlayer.paused && videoPlayer.readyState >= 3) return;
+        switchVideoBy(1);
+      }, 350);
+    }, 3000);
+
+    bufferWatchdog2 = setTimeout(() => {
+      bufferWatchdog2 = null;
+      if (session !== videoSession || videoStation !== station || videoModal.hidden) return;
+      if (videoPlayer && videoPlayer.paused) return;
+      bufferStats[station.id] = 5000;
+      refreshBufferLine(station.id);
+      showVideoOverlay('Gagal memuat, tandai offline/geo-block…', 'red');
+      if (videoStatus) videoStatus.textContent = 'Gagal memuat, tandai offline/geo-block…';
+      markOffline(station, 'Timeout/buffering > 5 detik (mungkin geo-block/offline).');
+      excludeStation(station, 'Timeout/buffering > 5 detik');
+      setTimeout(() => {
+        if (session !== videoSession || videoStation !== station) return;
+        if (videoOverlay && videoOverlay.hidden) return;
+        switchVideoBy(1);
+      }, 450);
+    }, 5000);
+  }
+  function switchVideoBy(delta) {
+    if (!isTv) return;
+    const items = visibleTvItems();
+    if (!items.length) return;
+    const idx = videoStation ? items.findIndex((s) => s.id === videoStation.id) : -1;
+    const next = idx < 0 ? 0 : (idx + delta + items.length) % items.length;
+    glowNavBtn(delta < 0 ? videoPrev : videoNext);
+    playVideo(items[next]);
+  }
+
   function closeVideo() {
     videoSession++;
+    clearBufferWatchdog();
     if (prefetchAbort) { try { prefetchAbort.abort(); } catch { /* ignore */ } prefetchAbort = null; }
     videoStation = null;
     if (videoHls) { try { videoHls.destroy(); } catch { /* ignore */ } videoHls = null; }
@@ -838,6 +1077,7 @@
 
   function playVideo(station) {
     videoSession++;
+    clearBufferWatchdog();
     if (prefetchAbort) { try { prefetchAbort.abort(); } catch { /* ignore */ } prefetchAbort = null; }
     if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
     if (hls) { try { hls.destroy(); } catch { /* ignore */ } hls = null; }
@@ -888,30 +1128,36 @@
     startHlsVideo(station, url, videoSession, index, candidates.length);
   }
 
-  // Konfigurasi hls.js yang dioptimalkan untuk stabilitas pada jaringan jelek.
-  // Buffer lebih besar, timeout lebih lama, mulai dari kualitas rendah, dan
-  // matikan low-latency mode (lebih stabil, sedikit latensi lebih tinggi).
+  // Konfigurasi hls.js: cepat mulai, stabil saat jaringan jelek, max 720p.
   function stableHlsConfig(extra) {
+    const preset = cachePreset();
     const cfg = {
       enableWorker: true,
       lowLatencyMode: false,
-      startLevel: -1,
+      startLevel: 0,
       capLevelToPlayerSize: false,
       autoStartLoad: true,
-      maxBufferLength: 60,
-      maxMaxBufferLength: 120,
-      maxBufferSize: 60 * 1000 * 1000,
-      maxBufferHole: 2,
-      fragLoadingTimeOut: 30000,
-      manifestLoadingTimeOut: 30000,
-      fragLoadingMaxRetry: 4,
+      maxBufferLength: preset.maxBufferLength || 60,
+      maxMaxBufferLength: preset.maxMaxBufferLength || 120,
+      maxBufferSize: preset.maxBufferSize || (60 * 1000 * 1000),
+      backBufferLength: 30,
+      maxBufferHole: 1.5,
+      highBufferWatchdogPeriod: 2,
+      fragLoadingTimeOut: 20000,
+      manifestLoadingTimeOut: 15000,
+      levelLoadingTimeOut: 15000,
+      fragLoadingMaxRetry: 6,
       fragLoadingMaxRetryTimeout: 15000,
-      manifestLoadingMaxRetry: 3,
-      manifestLoadingMaxRetryTimeout: 15000,
+      manifestLoadingMaxRetry: 4,
+      manifestLoadingMaxRetryTimeout: 12000,
+      levelLoadingMaxRetry: 4,
+      levelLoadingMaxRetryTimeout: 12000,
       startFragPrefetch: true,
+      testBandwidth: true,
+      progressive: true,
       appendErrorMaxRetry: 3,
       nudgeOffset: 0.1,
-      nudgeMaxRetry: 3,
+      nudgeMaxRetry: 5,
     };
     if (extra) Object.assign(cfg, extra);
     return cfg;
@@ -919,32 +1165,20 @@
 
   async function startHlsVideo(station, url, session, index, total) {
     if (session !== videoSession || videoStation !== station) return;
-    let startLevel = -1;
-    let useCacheLoader = false;
-    if (cacheVideo && videoCacheSupported()) {
-      useCacheLoader = true;
+    const preset = cachePreset();
+    const useCacheLoader = preset.enabled && videoCacheSupported();
+
+    if (useCacheLoader) {
       prefetchAbort = new AbortController();
-      setVideoStatus(index === 0 ? 'Menyimpan video ke cache… 0%' : `Menyimpan alternatif… ${Math.round((index / total) * 100)}%`);
-      try {
-        const budget = new Promise((resolve) => setTimeout(() => resolve(null), 7000));
-        const info = await Promise.race([
-          prefetchHls(url, prefetchAbort.signal),
-          budget,
-        ]);
-        if (session !== videoSession || videoStation !== station) return;
-        if (!info) {
-          try { prefetchAbort.abort(); } catch { /* ignore */ }
-        } else if (info.levelIndex >= 0) {
-          startLevel = info.levelIndex;
-        }
-      } catch { /* cache gagal, lanjut streaming biasa */ }
-      prefetchAbort = null;
-      if (session !== videoSession || videoStation !== station) return;
+      setVideoStatus('Memuat & caching…');
+      const bg = prefetchHls(url, prefetchAbort.signal).catch(() => null);
+      bg.then(() => { if (session === videoSession) pruneVideoCache(); });
+    } else {
+      setVideoStatus('Memuat stream…');
     }
 
-    setVideoStatus('Memuat stream…');
     const cfg = stableHlsConfig(useCacheLoader ? { loader: createCachingLoader() } : {});
-    if (startLevel >= 0) cfg.startLevel = startLevel;
+    cfg.startLevel = 0;
 
     videoHls = new window.Hls(cfg);
     videoHls.loadSource(url);
@@ -952,6 +1186,14 @@
     let resolved = false;
     videoHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
       if (resolved) return;
+      try {
+        const levels = (videoHls.levels || []).map((l, i) => ({ i, h: l.height || 0 }));
+        const cap = levels.filter((l) => l.h > 0 && l.h <= 720).pop();
+        if (cap) videoHls.autoLevelCapping = cap.i;
+        else if (levels.length) videoHls.autoLevelCapping = 0;
+        videoHls.nextLoadLevel = 0;
+        videoHls.startLoad(0);
+      } catch { /* ignore */ }
       resolved = true;
       setVideoStatus('Sedang ditonton');
       markOnline(station);
@@ -961,17 +1203,17 @@
       if (resolved) return;
       if (data && data.fatal) {
         resolved = true;
-        // Coba alternatif berikutnya.
+        try { if (prefetchAbort) prefetchAbort.abort(); } catch {}
         tryNextStream(station, index + 1);
       }
     });
-    // Jika video macet/terputus lama, coba alternatif berikutnya.
     const onStalled = () => {
       if (resolved || !videoStation || videoStation !== station) return;
-      resolved = true;
-      tryNextStream(station, index + 1);
+      showVideoOverlay('Buffering… mencoba memulihkan');
+      try { videoHls.startLoad(); } catch {}
+      armBufferWatchdog();
     };
-    videoPlayer.addEventListener('stalled', onStalled, { once: true });
+    videoPlayer.addEventListener('stalled', onStalled);
     videoPlayer.addEventListener('error', () => {
       if (resolved) return;
       resolved = true;
@@ -1046,11 +1288,41 @@
   if (fpVol) fpVol.addEventListener('input', () => { ensureAudio().volume = parseFloat(fpVol.value); });
   if (videoClose) videoClose.addEventListener('click', closeVideo);
   if (videoBackdrop) videoBackdrop.addEventListener('click', closeVideo);
+  if (videoPrev) videoPrev.addEventListener('click', (e) => { e.stopPropagation(); switchVideoBy(-1); });
+  if (videoNext) videoNext.addEventListener('click', (e) => { e.stopPropagation(); switchVideoBy(1); });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && videoModal && !videoModal.hidden) closeVideo();
-  });
+    if (videoModal && !videoModal.hidden) {
+      const k = e.key;
+      if (k === 'Escape' || k === 'Backspace' || e.keyCode === 4) { e.preventDefault(); closeVideo(); return; }
+      if (k === 'ArrowLeft' || k === 'MediaTrackPrevious' || k === 'ChannelDown') { e.preventDefault(); switchVideoBy(-1); return; }
+      if (k === 'ArrowRight' || k === 'MediaTrackNext' || k === 'ChannelUp') { e.preventDefault(); switchVideoBy(1); return; }
+    }
+  }, true);
   if (videoPlayer) {
-    videoPlayer.addEventListener('playing', () => { if (videoStation) markOnline(videoStation); });
+    videoPlayer.addEventListener('playing', () => {
+      if (videoStation) {
+        markOnline(videoStation);
+        if (bufferStartAt && bufferStartStationId === videoStation.id) {
+          bufferStats[videoStation.id] = Date.now() - bufferStartAt;
+          bufferStartAt = 0; bufferStartStationId = null;
+          refreshBufferLine(videoStation.id);
+        }
+      }
+      clearBufferWatchdog();
+      setVideoStatus('Sedang ditonton');
+    });
+    videoPlayer.addEventListener('waiting', () => {
+      if (videoStation && !videoModal.hidden) {
+        armBufferWatchdog();
+        if (!(bufferWatchdog || bufferWatchdog2)) return;
+        if (videoOverlay && videoOverlay.classList.contains('level-yellow')) return;
+        if (videoOverlay && videoOverlay.classList.contains('level-red')) return;
+        showVideoOverlay('Buffering…');
+      }
+    });
+    videoPlayer.addEventListener('canplay', () => {
+      if (videoStation && videoPlayer.paused) showVideoOverlay('Klik tombol putar pada video.');
+    });
     videoPlayer.addEventListener('error', () => {
       if (!videoStation || !videoPlayer.getAttribute('src')) return;
       setVideoStatus('Gagal memuat stream. Kanal ditandai offline (bisa geo-blocked/CORS).');
@@ -1125,28 +1397,28 @@
     syncSortUI();
   }
 
-  // --- Cache video on/off ---
-  function setCacheVideo(value, notify) {
-    const want = Boolean(value);
-    if (want && !videoCacheSupported()) {
-      cacheVideo = false;
-      if (cacheToggle) cacheToggle.checked = false;
+  // --- Cache video size ---
+  function setCacheSize(value, notify) {
+    const size = normalizeCacheSize(String(value));
+    if (size !== 'off' && !videoCacheSupported()) {
+      cacheSize = 'off'; cacheVideo = false;
+      if (cacheSizeSelect) cacheSizeSelect.value = 'off';
       if (notify) toast('Cache video tidak didukung di perangkat ini');
       return false;
     }
-    cacheVideo = want;
-    if (cacheToggle) cacheToggle.checked = cacheVideo;
-    try { localStorage.setItem(CACHE_KEY, String(cacheVideo)); } catch { /* ignore */ }
+    cacheSize = size;
+    cacheVideo = CACHE_PRESETS[cacheSize].enabled;
+    if (cacheSizeSelect) cacheSizeSelect.value = cacheSize;
+    try { localStorage.setItem(CACHE_KEY, cacheSize); } catch { /* ignore */ }
     if (notify) {
-      toast(cacheVideo
-        ? 'Cache video aktif — video disimpan dulu sebelum diputar'
-        : 'Cache video nonaktif');
+      const label = { off: 'Off', small: 'Kecil', medium: 'Sedang', large: 'Besar' }[cacheSize] || cacheSize;
+      toast(cacheSize === 'off' ? 'Cache video nonaktif' : `Cache video: ${label}`);
     }
     return true;
   }
-  if (cacheToggle) {
-    cacheToggle.checked = cacheVideo;
-    cacheToggle.addEventListener('change', () => setCacheVideo(cacheToggle.checked, true));
+  if (cacheSizeSelect) {
+    cacheSizeSelect.value = cacheSize;
+    cacheSizeSelect.addEventListener('change', () => setCacheSize(cacheSizeSelect.value, true));
   }
 
   // --- Donasi DANA ---
@@ -1247,8 +1519,10 @@
     },
     setSort: (value) => applySort(value),
     getSort: () => tvSort,
-    setCacheVideo: (value) => setCacheVideo(value, false),
+    setCacheVideo: (value) => setCacheSize(value === true ? 'medium' : value === false ? 'off' : value, false),
     getCacheVideo: () => cacheVideo,
+    setCacheSize: (value) => setCacheSize(value, false),
+    getCacheSize: () => cacheSize,
     cacheInfo: async () => {
       if (!videoCacheSupported()) return { supported: false, entries: 0 };
       const cache = await openVideoCache();

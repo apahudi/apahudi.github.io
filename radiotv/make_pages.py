@@ -3,13 +3,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 RADIO_FILTERS = [
-    ("all", "Semua"), ("jabodetabek", "Jabodetabek"), ("jawa", "Jawa"),
+    ("all", "Semua"), ("favorit", "★ Favorit"), ("jabodetabek", "Jabodetabek"), ("jawa", "Jawa"),
     ("sumatera", "Sumatera"), ("kalimantan", "Kalimantan"),
     ("sulawesi", "Sulawesi"), ("bali-nusa", "Bali & Nusa"),
     ("maluku", "Maluku"), ("papua", "Papua"), ("nasional", "Indonesia"),
 ]
 TV_FILTERS = [
-    ("all", "Semua"), ("nasional", "Nasional"), ("regional", "Regional"),
+    ("all", "Semua"), ("favorit", "★ Favorit"), ("nasional", "Nasional"), ("regional", "Regional"),
     ("religi", "Religi"), ("olahraga", "Olahraga"), ("film", "Film"),
     ("komedi", "Komedi"), ("hiburan", "Hiburan"), ("anak", "Anak"),
     ("musik", "Musik"), ("dokumenter", "Dokumenter"), ("berita", "Berita"),
@@ -21,8 +21,14 @@ TV_CONTROLS = '''        <div class="sort-group" id="sort-group" role="group" ar
           <button type="button" class="sort-btn" data-sort="location" aria-pressed="false">Lokasi</button>
           <button type="button" class="sort-btn" data-sort="category" aria-pressed="false">Kategori</button>
         </div>
-        <label class="cache-toggle" title="Simpan sebagian video ke perangkat sebelum diputar (khusus stream HLS)">
-          <input type="checkbox" id="cache-video" /> Cache video
+        <label class="cache-toggle" title="Cache video HLS untuk jaringan lambat">
+          Cache
+          <select id="cache-size" aria-label="Ukuran cache video">
+            <option value="off">Off</option>
+            <option value="small">Kecil</option>
+            <option value="medium">Sedang</option>
+            <option value="large">Besar</option>
+          </select>
         </label>'''
 
 TEMPLATE = '''<!DOCTYPE html>
@@ -33,7 +39,7 @@ TEMPLATE = '''<!DOCTYPE html>
   <title>{title} | TVRadioID</title>
   <meta name="description" content="{description}" />
   <meta name="theme-color" content="#0f172a" />
-  <link rel="stylesheet" href="style.css?v=17" />
+  <link rel="stylesheet" href="style.css?v=23" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -69,7 +75,7 @@ TEMPLATE = '''<!DOCTYPE html>
       <div class="toolbar">
         <button type="button" class="refresh-btn" id="refresh-btn" title="Muat ulang daftar dari stations.json">🔄 Perbarui</button>
         <button type="button" class="view-toggle" id="view-toggle" aria-pressed="true" title="Ubah ke tampilan daftar">☰ Daftar</button>
-        <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline</label>
+        <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline/geo-block</label>
 {tv_controls}
         <span class="count" id="station-count" aria-live="polite"></span>
       </div>
@@ -108,7 +114,8 @@ TEMPLATE = '''<!DOCTYPE html>
       <button type="button" class="fp-close donate-close" id="donate-close" aria-label="Tutup">✕</button>
       <div class="donate-heart">❤️</div>
       <h2 id="donate-title">Dukung TVRadioID</h2>
-      <p class="donate-sub">Donasi via DANA</p>
+      <p class="donate-sub">Scan QRIS dengan semua mobile banking & e-wallet</p>
+      <img src="QRIS.png" alt="QRIS Donasi TVRadioID" class="donate-qris" loading="lazy" />
       <dl class="donate-details">
         <div><dt>Nama</dt><dd>Moh Agus Budiman</dd></div>
         <div><dt>Nomor DANA</dt><dd class="donate-number">085323073037</dd></div>
@@ -130,9 +137,19 @@ TEMPLATE = '''<!DOCTYPE html>
             <div class="fp-sub" id="video-sub">Indonesia</div>
           </div>
         </div>
-        <button class="fp-close" id="video-close" aria-label="Tutup pemutar video">✕</button>
+        <div class="video-nav">
+          <button type="button" class="video-nav-btn" id="video-prev" aria-label="Kanal sebelumnya">‹ Prev Channel</button>
+          <button type="button" class="video-nav-btn" id="video-next" aria-label="Kanal berikutnya">Next Channel ›</button>
+          <button class="fp-close" id="video-close" aria-label="Tutup pemutar video">✕</button>
+        </div>
       </div>
       <video id="video-player" controls playsinline autoplay></video>
+      <div class="video-overlay" id="video-overlay" hidden>
+        <div class="video-overlay-inner">
+          <div class="video-spinner" aria-hidden="true"></div>
+          <div class="video-overlay-text" id="video-overlay-text">Memuat…</div>
+        </div>
+      </div>
       <div class="fp-status" id="video-status">Memuat…</div>
     </div>
   </div>
@@ -158,17 +175,17 @@ TEMPLATE = '''<!DOCTYPE html>
   </div>
 
   <script src="hls.min.js?v=1"></script>
-  <script src="stations-data.js?v=5"></script>
-  <script src="script.js?v=20"></script>
+  <script src="stations-data.js?v=7"></script>
+  <script src="script.js?v=27"></script>
 </body>
 </html>
 '''
 
 
-def tabs_html(items):
+def tabs_html(items, active_value='all'):
     lines = []
-    for i, (value, label) in enumerate(items):
-        active = ' class="tab active" role="tab" aria-selected="true"' if i == 0 else ' class="tab" role="tab" aria-selected="false"'
+    for value, label in items:
+        active = ' class="tab active" role="tab" aria-selected="true"' if value == active_value else ' class="tab" role="tab" aria-selected="false"'
         lines.append(f'        <button type="button"{active} data-filter="{value}">{label}</button>')
     return "\n".join(lines)
 
@@ -180,7 +197,7 @@ def build(page):
             description="Dengarkan stasiun radio streaming dari seluruh Indonesia di TVRadioID.",
             self="radio.html",
             radio_active=' aria-current="page"', tv_active="",
-            tabs=tabs_html(RADIO_FILTERS),
+            tabs=tabs_html(RADIO_FILTERS, 'all'),
             tv_controls="",
         )
     else:
@@ -189,7 +206,7 @@ def build(page):
             description="Nonton channel televisi live streaming dari seluruh Indonesia di TVRadioID.",
             self="tv.html",
             radio_active="", tv_active=' aria-current="page"',
-            tabs=tabs_html(TV_FILTERS),
+            tabs=tabs_html(TV_FILTERS, 'nasional'),
             tv_controls=TV_CONTROLS,
         )
     (ROOT / f"{page}.html").write_text(TEMPLATE.format(**data), encoding="utf-8")

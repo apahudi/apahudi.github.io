@@ -6,7 +6,7 @@
   <title>Radio Indonesia | TVRadioID</title>
   <meta name="description" content="Dengarkan stasiun radio streaming dari seluruh Indonesia di TVRadioID." />
   <meta name="theme-color" content="#0f172a" />
-  <link rel="stylesheet" href="style.css?v=17" />
+  <link rel="stylesheet" href="style.css?v=23" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -42,12 +42,13 @@
       <div class="toolbar">
         <button type="button" class="refresh-btn" id="refresh-btn" title="Muat ulang daftar dari stations.json">🔄 Perbarui</button>
         <button type="button" class="view-toggle" id="view-toggle" aria-pressed="true" title="Ubah ke tampilan daftar">☰ Daftar</button>
-        <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline</label>
+        <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline/geo-block</label>
 
         <span class="count" id="station-count" aria-live="polite"></span>
       </div>
       <div class="category-tabs" id="filter-tabs" role="tablist" aria-label="Filter">
         <button type="button" class="tab active" role="tab" aria-selected="true" data-filter="all">Semua</button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-filter="favorit">★ Favorit</button>
         <button type="button" class="tab" role="tab" aria-selected="false" data-filter="jabodetabek">Jabodetabek</button>
         <button type="button" class="tab" role="tab" aria-selected="false" data-filter="jawa">Jawa</button>
         <button type="button" class="tab" role="tab" aria-selected="false" data-filter="sumatera">Sumatera</button>
@@ -90,7 +91,8 @@
       <button type="button" class="fp-close donate-close" id="donate-close" aria-label="Tutup">✕</button>
       <div class="donate-heart">❤️</div>
       <h2 id="donate-title">Dukung TVRadioID</h2>
-      <p class="donate-sub">Donasi via DANA</p>
+      <p class="donate-sub">Scan QRIS dengan semua mobile banking & e-wallet</p>
+      <img src="QRIS.png" alt="QRIS Donasi TVRadioID" class="donate-qris" loading="lazy" />
       <dl class="donate-details">
         <div><dt>Nama</dt><dd>Moh Agus Budiman</dd></div>
         <div><dt>Nomor DANA</dt><dd class="donate-number">085323073037</dd></div>
@@ -112,9 +114,19 @@
             <div class="fp-sub" id="video-sub">Indonesia</div>
           </div>
         </div>
-        <button class="fp-close" id="video-close" aria-label="Tutup pemutar video">✕</button>
+        <div class="video-nav">
+          <button type="button" class="video-nav-btn" id="video-prev" aria-label="Kanal sebelumnya">‹ Prev Channel</button>
+          <button type="button" class="video-nav-btn" id="video-next" aria-label="Kanal berikutnya">Next Channel ›</button>
+          <button class="fp-close" id="video-close" aria-label="Tutup pemutar video">✕</button>
+        </div>
       </div>
       <video id="video-player" controls playsinline autoplay></video>
+      <div class="video-overlay" id="video-overlay" hidden>
+        <div class="video-overlay-inner">
+          <div class="video-spinner" aria-hidden="true"></div>
+          <div class="video-overlay-text" id="video-overlay-text">Memuat…</div>
+        </div>
+      </div>
       <div class="fp-status" id="video-status">Memuat…</div>
     </div>
   </div>
@@ -140,7 +152,7 @@
   </div>
 
   <script src="hls.min.js?v=1"></script>
-  <script src="stations-data.js?v=5"></script>
-  <script src="script.js?v=20"></script>
+  <script src="stations-data.js?v=7"></script>
+  <script src="script.js?v=27"></script>
 </body>
 </html>
