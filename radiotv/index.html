@@ -38,6 +38,17 @@
     .choice .sub{font-size:.82rem;color:var(--muted)}
     footer{padding:1.25rem;text-align:center;color:var(--muted);font-size:.8rem}
     @media (max-width:420px){.choices{grid-template-columns:1fr;max-width:280px}.choice{padding:1.8rem 1.25rem}}
+
+    body[data-theme="win11"]{--bg:#f3f3f3;--text:#1a1a1a;--muted:#5c5c5c;--accent:#0078d4;--accent2:#005a9e}
+    body[data-theme="mac"]{--bg:#f5f5f7;--text:#1d1d1f;--muted:#6e6e73;--accent:#007aff;--accent2:#5856d6}
+    body[data-theme="ubuntu"]{--bg:#2c2c2c;--text:#f7f7f7;--muted:#b0b0b0;--accent:#e95420;--accent2:#77216f}
+    body[data-theme="minimalis"]{--bg:#ffffff;--text:#111;--muted:#666;--accent:#111;--accent2:#444}
+    body[data-theme="win11"],body[data-theme="mac"],body[data-theme="minimalis"]{background:var(--bg)}
+    body[data-theme="win11"] .choice,body[data-theme="mac"] .choice,body[data-theme="minimalis"] .choice,body[data-theme="win11"] .country-box,body[data-theme="mac"] .country-box,body[data-theme="minimalis"] .country-box{background:rgba(255,255,255,.85);color:var(--text);border-color:rgba(0,0,0,.1)}
+    body[data-theme="win11"] .country-toggle,body[data-theme="win11"] #theme-select,body[data-theme="win11"] .country-search,body[data-theme="win11"] .country-panel,
+    body[data-theme="mac"] .country-toggle,body[data-theme="mac"] #theme-select,body[data-theme="mac"] .country-search,body[data-theme="mac"] .country-panel,
+    body[data-theme="minimalis"] .country-toggle,body[data-theme="minimalis"] #theme-select,body[data-theme="minimalis"] .country-search,body[data-theme="minimalis"] .country-panel{background:#fff;color:var(--text);border-color:rgba(0,0,0,.12)}
+    body[data-theme="ubuntu"] .choice,body[data-theme="ubuntu"] .country-box{background:rgba(59,59,59,.8);border-color:rgba(255,255,255,.12)}
   </style>
 </head>
 <body>
@@ -45,6 +56,14 @@
     <div class="brand">TV<span>Radio</span>ID</div>
     <p class="tagline">dari apahudi untuk negeri</p>
     <div class="country-box">
+      <label for="theme-select">Tema UI</label>
+      <select id="theme-select" style="width:100%;padding:.65rem .8rem;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(15,23,42,.55);color:var(--text);font:inherit;font-size:.92rem;margin-bottom:.8rem">
+        <option value="dark">Default Gelap</option>
+        <option value="win11">Windows 11</option>
+        <option value="mac">Mac OS Tahoe</option>
+        <option value="ubuntu">Ubuntu 26</option>
+        <option value="minimalis">Minimalis</option>
+      </select>
       <label for="country-toggle">Pilih negara kanal TV / Radio (bisa lebih dari satu)</label>
       <button type="button" class="country-toggle" id="country-toggle" aria-expanded="false">Semua Negara</button>
       <div class="country-panel" id="country-panel" hidden>
@@ -73,6 +92,12 @@
   <script src="stations-data.js?v=8"></script>
   <script>
   (() => {
+
+    const themeSelect = document.getElementById('theme-select');
+    function applyTheme(t,save){ t=['dark','win11','mac','ubuntu','minimalis'].includes(t)?t:'dark'; document.body.dataset.theme=t; if(themeSelect) themeSelect.value=t; if(save) try{localStorage.setItem('tvradio_theme',t)}catch{} }
+    applyTheme(localStorage.getItem('tvradio_theme')||'dark',false);
+    if(themeSelect) themeSelect.addEventListener('change',()=>applyTheme(themeSelect.value,true));
+
     const toggle = document.getElementById('country-toggle');
     const panel = document.getElementById('country-panel');
     const search = document.getElementById('country-search');

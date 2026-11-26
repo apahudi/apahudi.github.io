@@ -67,6 +67,7 @@
   const cacheSizeSelect = document.getElementById('cache-size');
   const scanBtn = document.getElementById('scan-btn');
   const countryClear = document.getElementById('country-clear');
+  const themeSelect = document.getElementById('theme-select');
 
   // Donation modal
   const donateBtn = document.getElementById('donate-btn');
@@ -1256,7 +1257,9 @@
     loadAlternatives();
     if (!station.stream && (!Array.isArray(station.alternatives) || !station.alternatives.length)) {
       setVideoStatus('Stream tidak tersedia.');
-      if (scanning) { setBufferStat(station.id, 10000); setTimeout(() => { if (scanning) advanceScan(); }, 300); }
+      markOffline(station, 'Stream tidak tersedia');
+      excludeStation(station, 'Stream tidak tersedia');
+      if (scanning) { setBufferStat(station.id, 10000); clearBufferWatchdog(); setTimeout(() => { if (scanning) advanceScan(); }, 300); }
       return;
     }
     tryNextStream(station, 0);
@@ -1267,12 +1270,12 @@
     const candidates = streamCandidates(station);
     if (index >= candidates.length) {
       setVideoStatus('Semua stream gagal diputar. Kanal mungkin offline atau geo-blocked.');
+      markOffline(station, 'Semua alternatif gagal (geo-blocked/CORS).');
+      excludeStation(station, 'Semua alternatif gagal');
       if (scanning) {
         setBufferStat(station.id, 10000);
         clearBufferWatchdog();
         setTimeout(() => { if (scanning) advanceScan(); }, 350);
-      } else {
-        markOffline(station, 'Semua alternatif gagal (geo-blocked/CORS).');
       }
       return;
     }
@@ -1527,12 +1530,12 @@
     videoPlayer.addEventListener('error', () => {
       if (!videoStation || !videoPlayer.getAttribute('src')) return;
       setVideoStatus('Gagal memuat stream. Kanal ditandai offline (bisa geo-blocked/CORS).');
+      markOffline(videoStation, 'Gagal diputar di browser ini (bisa geo-blocked/CORS).');
+      excludeStation(videoStation, 'Gagal diputar');
       if (scanning) {
         setBufferStat(videoStation.id, 10000);
         clearBufferWatchdog();
         setTimeout(() => { if (scanning) advanceScan(); }, 350);
-      } else {
-        markOffline(videoStation, 'Gagal diputar di browser ini (bisa geo-blocked/CORS).');
       }
     });
   }
@@ -1580,6 +1583,17 @@
       e.preventDefault(); // jangan pernah reload halaman
       refreshData(true);
     });
+  }
+  const THEME_KEY = 'tvradio_theme';
+  function applyTheme(theme, save) {
+    const t = ['dark','win11','mac','ubuntu','minimalis'].includes(theme) ? theme : 'dark';
+    document.body.dataset.theme = t;
+    if (themeSelect) themeSelect.value = t;
+    if (save) try { localStorage.setItem(THEME_KEY, t); } catch {}
+  }
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark', false);
+  if (themeSelect) {
+    themeSelect.addEventListener('change', () => applyTheme(themeSelect.value, true));
   }
   if (scanBtn) {
     scanBtn.addEventListener('click', (e) => {

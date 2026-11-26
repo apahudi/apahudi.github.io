@@ -40,12 +40,13 @@ TEMPLATE = '''<!DOCTYPE html>
   <title>{title} | TVRadioID</title>
   <meta name="description" content="{description}" />
   <meta name="theme-color" content="#0f172a" />
-  <link rel="stylesheet" href="style.css?v=26" />
+  <link rel="stylesheet" href="style.css?v=27" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 </head>
 <body data-page="{page}">
+  <script>try{{var t=localStorage.getItem('tvradio_theme');if(t)document.body.dataset.theme=t}}catch(e){{}}</script>
   <header class="header">
     <div class="container nav">
       <a href="index.html" class="brand" aria-label="TVRadioID — dari apahudi untuk negeri">
@@ -79,6 +80,16 @@ TEMPLATE = '''<!DOCTYPE html>
         <button type="button" class="view-toggle" id="view-toggle" aria-pressed="true" title="Ubah ke tampilan daftar">☰ Daftar</button>
         <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline/geo-block</label>
         <button type="button" class="scan-btn" id="scan-btn" title="Scan semua kanal di kategori ini">🔍 Scan Kanal</button>
+        <label class="theme-toggle" title="Tema UI">
+          Tema
+          <select id="theme-select" aria-label="Tema UI">
+            <option value="dark">Default Gelap</option>
+            <option value="win11">Windows 11</option>
+            <option value="mac">Mac OS Tahoe</option>
+            <option value="ubuntu">Ubuntu 26</option>
+            <option value="minimalis">Minimalis</option>
+          </select>
+        </label>
 {tv_controls}
         <button type="button" class="country-clear" id="country-clear" hidden></button>
         <span class="count" id="station-count" aria-live="polite"></span>
@@ -189,7 +200,7 @@ TEMPLATE = '''<!DOCTYPE html>
 
   <script src="hls.min.js?v=1"></script>
   <script src="stations-data.js?v=8"></script>
-  <script src="script.js?v=30"></script>
+  <script src="script.js?v=31"></script>
 </body>
 </html>
 '''
