@@ -30,16 +30,16 @@ Kanal yang diminta sudah termasuk: **SCTV, Kompas TV, tvOne, Bali TV, Bandung TV
 - **Halaman terpisah**: radio di `radio.html`, TV di `tv.html`; `index.html` mengarahkan ke halaman radio.
 - **Default grid + sembunyikan offline**: halaman langsung tampil sebagai grid tanpa kanal mati. Pilihan tersimpan di `localStorage` (`tvradio_view`, `tvradio_hide_offline`).
 - Tampilan **daftar ringkas** atau **grid kartu**, bisa diganti dengan tombol **▦ Grid / ☰ Daftar**. Grid responsif hingga 6 kolom di desktop dan 2 kolom di ponsel.
-- Mobile friendly: tab bisa digeser, input 16 px (tidak zoom saat diketik), tombol sentuh ≥38 px, dan menu off-canvas tanpa overflow horizontal.
+- Mobile friendly: tab bisa digeser, tombol sentuh ≥38 px, dan menu off-canvas tanpa overflow horizontal.
 - **Refresh tanpa reload halaman**: status kanal diperbarui di tempat dan posisi scroll tetap terjaga.
 - **Status kanal**: titik hijau = stream merespons saat pengecekan terakhir, badge merah **Off** = offline. Kanal yang gagal diputar di browser juga otomatis ditandai offline.
 - **Tombol Perbarui** untuk memuat ulang `stations.json`, plus **refresh otomatis setiap 6 jam** (dan saat tab dibuka kembali setelah lewat 6 jam).
 - Checkbox **Sembunyikan offline** untuk menyaring kanal yang mati.
 - Pemutar radio mengambang (audio bawaan browser) dengan kontrol volume dan favorit.
-- Pemutar TV dalam modal video (HLS via hls.js dari CDN).
-- Pencarian nama/daerah, filter TV (Semua / Nasional / Regional / Religi / Olahraga / Film), filter radio per wilayah (Jabodetabek, Jawa, Sumatera, Kalimantan, Sulawesi, Bali & Nusa, Maluku, Papua, Indonesia).
-- Chip provinsi untuk memfilter daftar di halaman yang sedang dibuka.
+- Pemutar TV dalam modal video (HLS via `hls.min.js` yang dibundel lokal, tidak bergantung CDN).
+- Filter TV (Semua / Nasional / Regional / Religi / Olahraga / Film), filter radio per wilayah (Jabodetabek, Jawa, Sumatera, Kalimantan, Sulawesi, Bali & Nusa, Maluku, Papua, Indonesia), serta chip provinsi yang bisa diklik lagi untuk menghapus filter.
 - Favorit disimpan di `localStorage` browser.
+- Tidak ada kotak pencarian, judul halaman, bar status, atau bagian "Tentang" — daftar langsung tampil.
 - Responsif dan berbahasa Indonesia.
 
 ## Refresh & status offline
@@ -74,6 +74,33 @@ python3 -m http.server 8000
 ```
 
 Buka lewat server lokal, bukan `file://`, karena refresh memakai `fetch` dan sebagian stream HLS/audio lebih stabil lewat `http://localhost`.
+
+## Aplikasi Android (APK)
+
+APK siap pasang ada di **`android/RadioTV-1.0.apk`** — untuk handphone maupun Android TV / smart TV berbasis Android.
+
+- **Minimal Android 5.0 (API 21)**, target Android 15 (API 35).
+- Semua halaman, CSS, JS, `hls.min.js`, dan data stasiun dibundel di dalam APK, jadi aplikasi tetap terbuka tanpa server. Stream tetap butuh internet.
+- Aplikasi memuat aset lewat origin `https://appassets.local/` yang dilayani dari `assets/www`, sehingga `fetch()`, `localStorage`, dan hls.js bekerja normal.
+- Remote TV didukung: tombol arah memindahkan fokus ke kartu kanal, Enter untuk memutar, Back untuk menutup pemutar.
+- Banner Android TV dan ikon launcher sudah disertakan.
+
+Pasang lewat sideload:
+
+```bash
+adb install -r android/RadioTV-1.0.apk
+# atau salin APK ke HP/TV lalu buka file-nya (izinkan "Install unknown apps")
+```
+
+Bangun ulang setelah mengubah situs:
+
+```bash
+cd android && ./build.sh
+```
+
+Skrip membutuhkan Android SDK (platform 35 dan build-tools 35.0.0, otomatis mencari `$ANDROID_HOME` atau `~/Android/Sdk`) serta JDK. Tidak perlu Gradle. Saat build, isi situs disalin ulang ke `android/assets/www`.
+
+APK ditandatangani dengan `android/tvradio.keystore` (kata sandi `tvradio`) yang hanya untuk pemasangan sendiri. Untuk Google Play, buat keystore baru dan simpan rahasia.
 
 ## Menambahkan stasiun / channel
 
@@ -124,7 +151,7 @@ Tautan `list.iptvcat.net/my_list/s/...m3u8` bukan stream akhir. Buka tautan ters
 
 ## Deploy ke GitHub Pages
 
-1. Buat repositori, misalnya `tvradio`, lalu unggah `index.html`, `radio.html`, `tv.html`, `style.css`, `script.js`, `stations-data.js`, `stations.json`, `README.md`, serta `.github/workflows/update-streams.yml` (opsional).
+1. Buat repositori, misalnya `tvradio`, lalu unggah `index.html`, `radio.html`, `tv.html`, `style.css`, `script.js`, `hls.min.js`, `stations-data.js`, `stations.json`, `README.md`, serta `.github/workflows/update-streams.yml` (opsional). Folder `android/` tidak wajib di-upload kecuali ingin menyimpan sumber APK.
 2. Buka **Settings → Pages**.
 3. Pilih branch `main` dan folder `/ (root)`, lalu **Save**.
 

@@ -17,10 +17,10 @@ TEMPLATE = '''<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>{title} | RadioTV Indonesia</title>
   <meta name="description" content="{description}" />
-  <link rel="stylesheet" href="style.css?v=9" />
+  <link rel="stylesheet" href="style.css?v=12" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -33,39 +33,24 @@ TEMPLATE = '''<!DOCTYPE html>
         <span class="bar"></span><span class="bar"></span><span class="bar"></span>
       </button>
       <nav class="nav-menu" id="nav-menu">
+        <button type="button" class="nav-close" aria-label="Tutup menu">✕</button>
         <ul role="menubar">
           <li role="none"><a href="radio.html" role="menuitem"{radio_active}>Radio</a></li>
           <li role="none"><a href="tv.html" role="menuitem"{tv_active}>TV</a></li>
           <li role="none"><a href="{self}#provinsi" role="menuitem">Provinsi</a></li>
-          <li role="none"><a href="{self}#tentang" role="menuitem">Tentang</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <section class="hero">
-    <div class="container hero-inner">
-      <h1 class="sr-only">{heading}</h1>
-      <div class="search-box" role="search" aria-label="Cari stasiun atau channel">
-        <label class="sr-only" for="search">Cari stasiun atau channel</label>
-        <input type="search" id="search" placeholder="{placeholder}" autocomplete="off" />
-        <button type="button" class="search-btn" aria-label="Cari"><span class="sr-only">Cari</span>🔍</button>
-      </div>
-      <div class="update-bar">
+  <section id="utama" class="section section-cards">
+    <div class="container">
+      <div class="toolbar">
         <button type="button" class="refresh-btn" id="refresh-btn" title="Muat ulang daftar dari stations.json">🔄 Perbarui</button>
         <button type="button" class="view-toggle" id="view-toggle" aria-pressed="true" title="Ubah ke tampilan daftar">☰ Daftar</button>
         <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline</label>
-        <span class="update-text" id="update-text" aria-live="polite">Memuat status…</span>
+        <span class="count" id="station-count" aria-live="polite"></span>
       </div>
-    </div>
-  </section>
-
-  <section id="utama" class="section section-cards">
-    <div class="container">
-      <header class="section-header">
-        <h2>{icon} {heading}</h2>
-        <p>{subtitle} <span class="count" id="station-count"></span></p>
-      </header>
       <div class="category-tabs" id="filter-tabs" role="tablist" aria-label="Filter">
 {tabs}
       </div>
@@ -80,32 +65,9 @@ TEMPLATE = '''<!DOCTYPE html>
     <div class="container">
       <header class="section-header">
         <h2>🗺️ Berdasarkan Provinsi</h2>
-        <p>Klik provinsi untuk memfilter daftar.</p>
+        <p>Klik provinsi untuk memfilter daftar, klik lagi untuk menghapus.</p>
       </header>
       <div class="chip-cloud" id="provinsi-grid"></div>
-    </div>
-  </section>
-
-  <section id="tentang" class="section section-about">
-    <div class="container">
-      <div class="about-grid">
-        <div class="about-text">
-          <h2>Tentang RadioTV Indonesia</h2>
-          <p>Daftar {kind} Indonesia dari sumber resmi dan publik. Pilih tampilan grid atau daftar, simpan favorit, dan perbarui status kanal kapan saja.</p>
-          <ul class="feature-list">
-            <li>✅ Refresh manual dan otomatis tiap 6 jam, tanpa reload halaman</li>
-            <li>✅ Kanal offline diberi tanda dan bisa disembunyikan</li>
-            <li>✅ Pencarian, filter wilayah/kategori, dan chip provinsi</li>
-            <li>✅ Favorit tersimpan di browser</li>
-          </ul>
-        </div>
-        <div class="about-disclaimer">
-          <div class="card warn">
-            <h3>⚠️ Penting</h3>
-            <p>Stream berasal dari sumber publik dan resmi; kami tidak meng-host konten. Sebagian kanal bersifat geo-blocked, http-only, atau berlangganan sehingga bisa gagal diputar dari luar Indonesia.</p>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -155,9 +117,9 @@ TEMPLATE = '''<!DOCTYPE html>
     <div class="fp-status" id="fp-status">Siap</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="hls.min.js?v=1"></script>
   <script src="stations-data.js?v=1"></script>
-  <script src="script.js?v=8"></script>
+  <script src="script.js?v=10"></script>
 </body>
 </html>
 '''
@@ -174,21 +136,17 @@ def tabs_html(items):
 def build(page):
     if page == "radio":
         data = dict(
-            page="radio", title="Radio Indonesia", heading="Radio Indonesia",
+            page="radio", title="Radio Indonesia",
             description="Dengarkan stasiun radio streaming dari seluruh Indonesia.",
-            placeholder="Cari stasiun radio atau daerah…",
-            subtitle="Pilih stasiun radio favorit Anda dari seluruh nusantara.",
-            icon="📻", kind="stasiun radio", self="radio.html",
+            self="radio.html",
             radio_active=' aria-current="page"', tv_active="",
             tabs=tabs_html(RADIO_FILTERS),
         )
     else:
         data = dict(
-            page="tv", title="TV Indonesia", heading="TV Indonesia",
+            page="tv", title="TV Indonesia",
             description="Nonton channel televisi live streaming dari seluruh Indonesia.",
-            placeholder="Cari channel TV atau daerah…",
-            subtitle="Nonton channel televisi favorit Anda secara live streaming.",
-            icon="📺", kind="channel TV", self="tv.html",
+            self="tv.html",
             radio_active="", tv_active=' aria-current="page"',
             tabs=tabs_html(TV_FILTERS),
         )

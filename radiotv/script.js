@@ -75,6 +75,7 @@
   let videoStation = null;
   let pageFilter = 'all';
   let searchQuery = '';
+  let provinceFilter = '';
   let gridView = (localStorage.getItem(VIEW_KEY) || 'grid') === 'grid';
   let hideOffline = (localStorage.getItem(HIDE_KEY) || 'true') === 'true';
   let lastRefresh = Number(localStorage.getItem(LAST_REFRESH_KEY)) || 0;
@@ -187,9 +188,30 @@
     return stations.filter((s) => s.type === page);
   }
 
+  // Notifikasi singkat menggantikan bar status yang dihapus.
+  let toastTimer = null;
+  function toast(message) {
+    let el = document.getElementById('app-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'app-toast';
+      el.className = 'toast';
+      el.setAttribute('role', 'status');
+      document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
   function updateInfoBar(message) {
+    if (message) {
+      if (updateText) updateText.textContent = message;
+      else toast(message);
+      return;
+    }
     if (!updateText) return;
-    if (message) { updateText.textContent = message; return; }
     const own = pageStations();
     const offline = own.filter((s) => statusOf(s) === 'offline').length;
     const unknown = own.filter((s) => statusOf(s) === 'unknown').length;
@@ -201,7 +223,7 @@
   async function refreshData(manual) {
     if (refreshing) return;
     refreshing = true;
-    if (manual) updateInfoBar('Memuat daftar terbaru…');
+    if (manual && updateText) updateInfoBar('Memuat daftar terbaru…');
     if (refreshBtn) refreshBtn.classList.add('busy');
     try {
       if (location.protocol === 'file:') {
@@ -227,6 +249,7 @@
       try { localStorage.setItem(LAST_REFRESH_KEY, String(lastRefresh)); } catch { /* ignore */ }
       refreshStatusUI();
       if (window.scrollY !== scrollY) window.scrollTo(0, scrollY);
+      if (manual) toast('Daftar diperbarui');
     } catch (err) {
       updateInfoBar(`Gagal memperbarui (${err.message}). Menampilkan data tersimpan.`);
     } finally {
@@ -263,6 +286,7 @@
   function visibleStation(s) {
     return s.type === page &&
       !(hideOffline && statusOf(s) === 'offline') &&
+      (!provinceFilter || (s.province || 'Indonesia') === provinceFilter) &&
       matchesFilter(s, pageFilter) &&
       matchesSearch(s, searchQuery);
   }
@@ -351,7 +375,7 @@
     listEl.replaceChildren(frag);
 
     emptyEl.hidden = items.length !== 0;
-    countEl.textContent = `${items.length} ${isTv ? 'kanal' : 'stasiun'}`;
+    if (countEl) countEl.textContent = `${items.length} ${isTv ? 'kanal' : 'stasiun'}`;
   }
 
   // --- Province chips ---
@@ -367,11 +391,17 @@
     sorted.forEach(([name, count]) => {
       const chip = document.createElement('button');
       chip.type = 'button';
-      chip.className = 'chip';
+      chip.className = 'chip' + (provinceFilter === name ? ' active' : '');
+      chip.setAttribute('aria-pressed', String(provinceFilter === name));
+      chip.title = 'Klik lagi untuk menghapus filter';
       chip.innerHTML = `📍 ${escapeHtml(name)} <span class="n">${count}</span>`;
       chip.addEventListener('click', () => {
-        searchInput.value = name;
-        searchQuery = name;
+        provinceFilter = provinceFilter === name ? '' : name;
+        provinsiGrid.querySelectorAll('.chip').forEach((c) => {
+          const active = c === chip && provinceFilter === name;
+          c.classList.toggle('active', active);
+          c.setAttribute('aria-pressed', String(active));
+        });
         render();
         document.getElementById('utama').scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
@@ -557,22 +587,25 @@
     });
   }
 
-  // --- Search ---
+  // --- Search (opsional: hanya aktif bila kotak pencarian ada) ---
   let searchTimer = null;
   function applySearch(scroll) {
+    if (!searchInput) return;
     searchQuery = searchInput.value.trim();
     render();
     if (scroll) document.getElementById('utama').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
-  searchInput.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => applySearch(false), 150);
-  });
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); applySearch(true); }
-  });
-  const searchBtn = document.querySelector('.search-btn');
-  if (searchBtn) searchBtn.addEventListener('click', () => applySearch(true));
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => applySearch(false), 150);
+    });
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); applySearch(true); }
+    });
+    const searchBtn = document.querySelector('.search-btn');
+    if (searchBtn) searchBtn.addEventListener('click', () => applySearch(true));
+  }
 
   // --- Refresh manual & otomatis 6 jam ---
   if (refreshBtn) {
@@ -610,15 +643,22 @@
 
   // --- Mobile nav ---
   if (navToggle && navMenu) {
+    const closeNav = () => {
+      navMenu.classList.remove('open');
+      navToggle.setAttribute('aria-expanded', 'false');
+    };
     navToggle.addEventListener('click', () => {
       const open = navMenu.classList.toggle('open');
       navToggle.setAttribute('aria-expanded', String(open));
     });
-    navMenu.querySelectorAll('a').forEach((a) => {
-      a.addEventListener('click', () => {
-        navMenu.classList.remove('open');
-        navToggle.setAttribute('aria-expanded', 'false');
-      });
+    navMenu.querySelectorAll('a').forEach((a) => a.addEventListener('click', closeNav));
+    const navClose = navMenu.querySelector('.nav-close');
+    if (navClose) navClose.addEventListener('click', closeNav);
+    navMenu.addEventListener('click', (e) => {
+      if (e.target === navMenu || e.target.tagName === 'UL') closeNav();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && navMenu.classList.contains('open')) closeNav();
     });
   }
 
