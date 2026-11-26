@@ -1,169 +1,121 @@
-# TVRadio Indonesia
+# TVRadioID
 
-Website streaming **radio dan TV live** dari seluruh Indonesia. HTML/CSS/JS murni, tanpa build step, siap di-deploy ke GitHub Pages, Netlify, Vercel, atau hosting statis lain.
+**dari apahudi untuk negeri**
+
+Website streaming **radio dan TV live** Indonesia + kanal internasional populer. HTML/CSS/JS murni, tanpa build step, siap di-deploy ke GitHub Pages, Netlify, Vercel, atau hosting statis lain.
 
 ## Struktur halaman
 
 | Halaman | Isi |
 | --- | --- |
 | `radio.html` | Daftar stasiun radio (293 stasiun) |
-| `tv.html` | Daftar channel TV (233 kanal) |
+| `tv.html` | Daftar channel TV (4.218 kanal) |
 | `index.html` | Alihkan otomatis ke `radio.html` |
 
-Kedua halaman memakai `style.css`, `script.js`, dan data dari `stations-data.js` (bawaan) / `stations.json` (untuk refresh). Tombol **Radio** dan **TV** di header menghubungkan kedua halaman.
+Kedua halaman memakai `style.css`, `script.js`, dan data dari `stations-data.js` (bawaan) / `stations.json` (untuk refresh). Header: **TVRadioID** + slogan, navigasi Radio/TV/Provinsi, tombol donasi DANA.
 
 Footer di kedua halaman: `RadioTV v.1.0 | dibuat oleh ApahUdi | 2026`.
 
 Tampilan awal: **grid** dan **Sembunyikan offline aktif**; kedua pilihan tersimpan di browser.
 
+## Fitur utama
+
+- **Radio & TV terpisah**: halaman sendiri, data difilter berdasarkan tipe.
+- **TV fullscreen**: klik kanal TV langsung putar di overlay fullscreen; tombol Back/Esc/remote menutup player.
+- **Navigasi remote/D-pad**: baris TV bisa difokus, Enter/OK memutar, `f` toggle favorit, fokus otomatis scroll ke layar.
+- **Urutkan TV**: Nama / Lokasi / Kategori (tersimpan di browser).
+- **Cache video TV**: toggle ON/OFF; saat ON, playlist dan segmen awal HLS disimpan di Cache Storage sebelum diputar untuk jaringan kurang stabil.
+- **Alternatif stream otomatis**: saat stream utama gagal/geo-blocked/CORS/stalled, aplikasi mencoba URL alternatif dari playlist eksternal dan kandidat yang terpasang ke kanal.
+- **Buffer HLS dioptimalkan**: buffer lebih besar, retry/timeout lebih tahan gangguan, `lowLatencyMode` off untuk stabilitas.
+- **Status offline**: pengecekan build-time + deteksi gagal putar lokal (disimpan 6 jam di browser). Kanal offline disembunyikan saat opsi aktif.
+- **Refresh tanpa reload**: tombol Refresh memperbarui data di tempat; auto-refresh setiap 6 jam.
+- **Filter provinsi/kategori**: chip provinsi dan tab kategori.
+- **Donasi**: ikon hati membuka modal DANA (Moh Agus Budiman, 085323073037).
+
 ## Isi katalog
 
-| Jenis | Jumlah | Sumber |
-| --- | --- | --- |
-| TV | 233 kanal | TVRI & RRI (resmi), IPTV Cat, iptv-org, serta beberapa kanal publik tambahan |
-| Radio | 293 stasiun | RRI (resmi) dan [IPTV Cat Radio Indonesia](https://iptvcat.net/radio/indonesia) |
+| Jenis | Jumlah | Sumber utama |
+| --- | ---: | --- |
+| TV | 4.218 kanal | TVRI & RRI (resmi), iptv-org, IPTV Cat, publik, CODECS.COM (internasional populer) |
+| Radio | 293 stasiun | RRI (resmi), IPTV Cat Radio Indonesia |
 
-Kanal yang diminta sudah termasuk: **SCTV, Kompas TV, tvOne, Bali TV, Bandung TV, Jogja TV, Jak TV, STARA TV, Mentari TV**, serta **HBO Asia, HBO Hits Asia, HBO Signature Asia, Cinemax Asia**.
+### Kategori TV
 
-## Fitur
+`Nasional, Regional, Religi, Olahraga, Film, Komedi, Hiburan, Anak, Musik, Dokumenter, Berita`
 
-- **Halaman terpisah**: radio di `radio.html`, TV di `tv.html`; `index.html` mengarahkan ke halaman radio.
-- **Default grid + sembunyikan offline**: halaman langsung tampil sebagai grid tanpa kanal mati. Pilihan tersimpan di `localStorage` (`tvradio_view`, `tvradio_hide_offline`).
-- Tampilan **daftar ringkas** atau **grid kartu**, bisa diganti dengan tombol **▦ Grid / ☰ Daftar**. Grid responsif hingga 6 kolom di desktop dan 2 kolom di ponsel.
-- Mobile friendly: tab bisa digeser, tombol sentuh ≥38 px, dan menu off-canvas tanpa overflow horizontal.
-- **Refresh tanpa reload halaman**: status kanal diperbarui di tempat dan posisi scroll tetap terjaga.
-- **Status kanal**: titik hijau = stream merespons saat pengecekan terakhir, badge merah **Off** = offline. Kanal yang gagal diputar di browser juga otomatis ditandai offline.
-- **Tombol Perbarui** untuk memuat ulang `stations.json`, plus **refresh otomatis setiap 6 jam** (dan saat tab dibuka kembali setelah lewat 6 jam).
-- Checkbox **Sembunyikan offline** untuk menyaring kanal yang mati.
-- Pemutar radio mengambang (audio bawaan browser) dengan kontrol volume dan favorit.
-- Pemutar TV dalam modal video (HLS via `hls.min.js` yang dibundel lokal, tidak bergantung CDN).
-- Filter TV (Semua / Nasional / Regional / Religi / Olahraga / Film), filter radio per wilayah (Jabodetabek, Jawa, Sumatera, Kalimantan, Sulawesi, Bali & Nusa, Maluku, Papua, Indonesia), serta chip provinsi yang bisa diklik lagi untuk menghapus filter.
-- Favorit disimpan di `localStorage` browser.
-- Tidak ada kotak pencarian, judul halaman, bar status, atau bagian "Tentang" — daftar langsung tampil.
-- Responsif dan berbahasa Indonesia.
+Kanal internasional CODECS.COM ditandai `province: "Internasional"`, `source: "CODECS.COM"`, `status: "unknown"` sampai diverifikasi/diputar.
 
-## Refresh & status offline
+## Sumber playlist
 
-Daftar kanal dimuat dari `stations-data.js` (sinkron, langsung tampil), lalu diperbarui lewat `fetch` dari `stations.json`.
+- Data utama: `stations.json` / `stations-data.js`
+- Alternatif stream runtime: `https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8`, `https://m3u8-player.net/id/free-indonesia-iptv-playlist/`
+- Import batch CODECS.COM (file lokal): `popular-movies`, `popular-comedy`, `popular-general/entertainment`, `popular-kids`, `popular-music`, `popular-documentary`, `popular-news`, `popular-sports`
 
-- **Manual:** tombol **🔄 Perbarui** di halaman. Tidak memuat ulang halaman: data diambil lewat `fetch`, status diperbarui di tempat, dan posisi scroll dipertahankan.
-- **Otomatis di browser:** setiap 6 jam situs mengambil ulang `stations.json` (cache-busting), dan mengecek ulang saat tab kembali aktif bila sudah lewat 6 jam.
-- **Otomatis di server (opsional):** jalankan `update_streams.py` secara berkala, atau aktifkan workflow `.github/workflows/update-streams.yml` yang berjalan tiap 6 jam di GitHub Actions dan meng-commit `stations.json` terbaru.
+## Aplikasi Android (TVRadioID)
+
+Proyek Android ada di `android/`. Aplikasi adalah WebView yang memuat aset `android/app/src/main/assets/www` dari `https://appassets.local/`.
+
+- **Package**: `com.apahudi.tvradio`
+- **Version**: `1.2` (`versionCode 3`)
+- **Output APK**: `android/TVRadioID-1.2.apk`
+
+### Build APK
 
 ```bash
-python3 update_streams.py            # cek semua stream, tulis stations.json + stations-data.js
-python3 update_streams.py --no-html  # hanya stations.json (dipakai workflow)
-python3 make_pages.py                # bangun ulang radio.html & tv.html dari templat
+cd android
+bash build.sh
 ```
 
-Klasifikasi status:
+Persyaratan: Android SDK platform 35, build-tools 35.0.0, JDK 21. Keystore sideload: `android/tvradio.keystore` (alias `tvradio`, password `tvradio`).
 
-| Status | Arti |
-| --- | --- |
-| `online` | Stream merespons HTTP 2xx/3xx saat pengecekan |
-| `offline` | Stream merespons HTTP 4xx/5xx (mis. 404) — ditandai **Off** |
-| `unknown` | Timeout atau ditolak (400/401/403/429) — bisa geo-blocked, belum tentu mati |
-
-Stream yang gagal diputar di browser (bisa karena geo-block/CORS/mixed content) ditandai offline secara lokal selama 6 jam, lalu dicek ulang otomatis. Status tersimpan di `localStorage`.
-
-## Menjalankan secara lokal
+### Install ke Android TV / device ADB
 
 ```bash
-python3 -m http.server 8000
-# Buka http://localhost:8000/radio.html atau /tv.html
+adb connect <IP-TV>:5555
+adb install -r android/TVRadioID-1.2.apk
 ```
 
-Buka lewat server lokal, bukan `file://`, karena refresh memakai `fetch` dan sebagian stream HLS/audio lebih stabil lewat `http://localhost`.
-
-## Aplikasi Android (APK)
-
-APK siap pasang ada di **`android/RadioTV-1.0.apk`** — untuk handphone maupun Android TV / smart TV berbasis Android.
-
-- **Minimal Android 5.0 (API 21)**, target Android 15 (API 35).
-- Semua halaman, CSS, JS, `hls.min.js`, dan data stasiun dibundel di dalam APK, jadi aplikasi tetap terbuka tanpa server. Stream tetap butuh internet.
-- Aplikasi memuat aset lewat origin `https://appassets.local/` yang dilayani dari `assets/www`, sehingga `fetch()`, `localStorage`, dan hls.js bekerja normal.
-- Remote TV didukung: tombol arah memindahkan fokus ke kartu kanal, Enter untuk memutar, Back untuk menutup pemutar.
-- Banner Android TV dan ikon launcher sudah disertakan.
-
-Pasang lewat sideload:
+## Perbarui / cek status stream
 
 ```bash
-adb install -r android/RadioTV-1.0.apk
-# atau salin APK ke HP/TV lalu buka file-nya (izinkan "Install unknown apps")
+python3 update_streams.py
 ```
 
-Bangun ulang setelah mengubah situs:
+Script ini mengecek stream dan memperbarui `stations.json` + `stations-data.js`. Status: `online`, `offline`, `unknown` (timeout/geo-block/ditolak).
 
-```bash
-cd android && ./build.sh
+## Format data stasiun
+
+`stations.json` berisi array objek:
+
+```json
+{
+  "id": "unik",
+  "type": "tv|radio",
+  "name": "Nama Kanal",
+  "city": "Kota",
+  "province": "Provinsi/Internasional",
+  "category": "nasional|regional|...|berita",
+  "stream": "https://contoh.com/stream.m3u8",
+  "desc": "Deskripsi",
+  "logo": "https://...png",
+  "source": "Sumber",
+  "status": "online|offline|unknown",
+  "checkedAt": "ISO-8601",
+  "httpCode": 200
+}
 ```
 
-Skrip membutuhkan Android SDK (platform 35 dan build-tools 35.0.0, otomatis mencari `$ANDROID_HOME` atau `~/Android/Sdk`) serta JDK. Tidak perlu Gradle. Saat build, isi situs disalin ulang ke `android/assets/www`.
+### Menambah stasiun manual
 
-APK ditandatangani dengan `android/tvradio.keystore` (kata sandi `tvradio`) yang hanya untuk pemasangan sendiri. Untuk Google Play, buat keystore baru dan simpan rahasia.
+1. Tambah objek ke `stations.json`.
+2. Jalankan `python3 update_streams.py --no-html` atau perbarui `stations-data.js` sesuai kebutuhan.
+3. Jika menambah kategori/filter TV baru, perbarui `TV_FILTERS` di `make_pages.py` lalu jalankan `python3 make_pages.py`.
+4. Sinkronkan aset ke `android/app/src/main/assets/www` dan rebuild APK bila perlu.
 
-## Menambahkan stasiun / channel
+## Catatan
 
-Tambahkan entri ke `stations.json` (sumber untuk tombol Perbarui). `stations-data.js` adalah data bawaan yang dimuat saat halaman pertama dibuka:
+- Banyak channel internasional bisa **geo-blocked**, butuh hak akses, atau berubah sewaktu-waktu. Aplikasi menandai gagal putar sebagai offline lokal dan mencoba alternatif bila ada.
+- Gunakan hanya stream yang kamu miliki hak distribusi/aksesnya.
+- `stations-data.js` harus tetap sinkron dengan `stations.json` untuk mode bawaan/offline-first.
 
-```js
-/* stations-data.js */
-window.STATIONS_DATA = [
-  {
-    "id": "contoh_radio",
-    "type": "radio",
-    "name": "Nama Stasiun",
-    "city": "Bandung",
-    "province": "Jawa Barat",
-    "category": "jawa",
-    "stream": "https://contoh.com/stream.mp3",
-    "desc": "Deskripsi singkat stasiun.",
-    "logo": "https://contoh.com/logo.png",
-    "source": "Resmi"
-  },
-  {
-    "id": "contoh_tv",
-    "type": "tv",
-    "name": "Nama TV",
-    "city": "Jakarta",
-    "province": "DKI Jakarta",
-    "category": "nasional",
-    "stream": "https://contoh.com/stream.m3u8",
-    "desc": "Deskripsi singkat channel TV.",
-    "logo": "https://contoh.com/logo.png",
-    "source": "Publik"
-  }
-];
-```
-
-Cara termudah: tambahkan ke `stations.json`, lalu jalankan `python3 update_streams.py` agar `stations-data.js` ikut diperbarui.
-
-- `id` harus unik. `type`: `radio` atau `tv`.
-- `category` radio: `jabodetabek`, `jawa`, `sumatera`, `kalimantan`, `sulawesi`, `bali-nusa`, `maluku`, `papua`, `nasional`.
-- `category` TV: `nasional`, `regional`, `religi`, `olahraga`, `film`.
-- `region`: `jabodetabek`, `jawa`, `sumatera`, `kalimantan`, `sulawesi`, `bali-nusa`, `maluku`, `papua`, `nasional`.
-- `logo` boleh kosong; ikon bawaan yang akan ditampilkan.
-- `stream`: URL langsung (`.mp3`, `.m3u8`, dll.).
-
-### Menambahkan kanal dari IPTV Cat
-
-Tautan `list.iptvcat.net/my_list/s/...m3u8` bukan stream akhir. Buka tautan tersebut, lalu salin baris URL pertama di dalamnya sebagai nilai `stream`. Pastikan hasilnya benar-benar `http://` atau `https://`, bukan halaman HTML error.
-
-## Deploy ke GitHub Pages
-
-1. Buat repositori, misalnya `tvradio`, lalu unggah `index.html`, `radio.html`, `tv.html`, `style.css`, `script.js`, `hls.min.js`, `stations-data.js`, `stations.json`, `README.md`, serta `.github/workflows/update-streams.yml` (opsional). Folder `android/` tidak wajib di-upload kecuali ingin menyimpan sumber APK.
-2. Buka **Settings → Pages**.
-3. Pilih branch `main` dan folder `/ (root)`, lalu **Save**.
-
-## Catatan penting
-
-- Situs ini **tidak menyimpan atau meng-host** konten streaming; semua URL berasal dari sumber publik/resmi.
-- Banyak kanal bersifat **geo-blocked** (hanya bisa diputar dari dalam negeri), **http-only** (diblokir saat situs dibuka lewat HTTPS / mixed content), atau memerlukan header `Access-Control-Allow-Origin` agar hls.js bisa memutar di Chrome/Firefox. Kanal yang gagal diputar dari luar Indonesia belum tentu rusak—coba dari jaringan Indonesia.
-- Kanal **HBO / HITS / Cinemax / Mentari TV** adalah siaran berlangganan: URL publiknya tidak stabil dan sering berganti, jadi pemutaran tidak dijamin.
-- Daftar stream dapat berubah kapan saja. Jika ada kanal yang mati, perbarui URL `stream`-nya di `stations.json` lalu jalankan `python3 update_streams.py`.
-- Contoh kanal yang saat pengecekan terakhir berstatus offline: **Jogja TV** (HTTP 404). Ia tetap bisa diputar manual bila URL diperbaiki; aktifkan checkbox **Sembunyikan offline** untuk menyembunyikannya.
-- Jika Anda pemilik hak cipta dan ingin stream dihapus, hubungi pengelola situs.
-
-## Lisensi
-
-Situs ini disediakan sebagai template open source dan bebas dikembangkan untuk kebutuhan streaming radio & TV Indonesia.
+Lisensi: konten kode proyek ini dapat digunakan/dikembangkan sesuai kebutuhan pemilik repo; hak siar stream tetap milik masing-masing penyedia.

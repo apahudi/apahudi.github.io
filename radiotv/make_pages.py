@@ -11,6 +11,8 @@ RADIO_FILTERS = [
 TV_FILTERS = [
     ("all", "Semua"), ("nasional", "Nasional"), ("regional", "Regional"),
     ("religi", "Religi"), ("olahraga", "Olahraga"), ("film", "Film"),
+    ("komedi", "Komedi"), ("hiburan", "Hiburan"), ("anak", "Anak"),
+    ("musik", "Musik"), ("dokumenter", "Dokumenter"), ("berita", "Berita"),
 ]
 
 TV_CONTROLS = '''        <div class="sort-group" id="sort-group" role="group" aria-label="Urutkan kanal">
@@ -31,7 +33,7 @@ TEMPLATE = '''<!DOCTYPE html>
   <title>{title} | TVRadioID</title>
   <meta name="description" content="{description}" />
   <meta name="theme-color" content="#0f172a" />
-  <link rel="stylesheet" href="style.css?v=15" />
+  <link rel="stylesheet" href="style.css?v=17" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -156,8 +158,8 @@ TEMPLATE = '''<!DOCTYPE html>
   </div>
 
   <script src="hls.min.js?v=1"></script>
-  <script src="stations-data.js?v=1"></script>
-  <script src="script.js?v=14"></script>
+  <script src="stations-data.js?v=5"></script>
+  <script src="script.js?v=20"></script>
 </body>
 </html>
 '''

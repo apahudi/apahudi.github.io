@@ -18,7 +18,14 @@
   const SORT_KEY = 'tvradio_tv_sort';
   const CACHE_KEY = 'tvradio_cache_video';
   const VIDEO_CACHE_NAME = 'tvradio-video-v1';
-  const MAX_CACHE_ENTRIES = 80;
+  const MAX_CACHE_ENTRIES = 160;
+  const ALT_SOURCES = [
+    'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8',
+    'https://m3u8-player.net/id/free-indonesia-iptv-playlist/',
+  ];
+  const ALT_CACHE_KEY = 'tvradio_alt_streams_v1';
+  const ALT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 
   function dedupe(list) {
     const seen = new Set();
@@ -96,6 +103,114 @@
   let cacheVideo = localStorage.getItem(CACHE_KEY) === 'true';
   let prefetchAbort = null;
   let videoSession = 0;
+  let altStreamsReady = false;
+  let altByName = new Map();
+
+  function normalizeName(name) {
+    return String(name || '').toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+  }
+
+  function parseM3u8(text) {
+    const entries = [];
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length - 1; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#EXTINF:')) {
+        const comma = line.lastIndexOf(',');
+        const name = comma >= 0 ? line.slice(comma + 1).trim() : '';
+        const url = lines[i + 1].trim();
+        if (name && url && /^https?:\/\//i.test(url)) {
+          entries.push({ name, url });
+        }
+      }
+    }
+    return entries;
+  }
+
+  async function fetchPlaylistText(url) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function loadAltFromStorage() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(ALT_CACHE_KEY) || '{}');
+      const now = Date.now();
+      for (const [key, arr] of Object.entries(raw)) {
+        if (!Array.isArray(arr)) continue;
+        const valid = arr.filter(a => a.url && now - Number(a.at || 0) < ALT_CACHE_TTL_MS);
+        if (valid.length) altByName.set(key, valid);
+      }
+    } catch { /* ignore */ }
+  }
+  function saveAltToStorage() {
+    try {
+      const raw = {};
+      altByName.forEach((arr, key) => { raw[key] = arr; });
+      localStorage.setItem(ALT_CACHE_KEY, JSON.stringify(raw));
+    } catch { /* ignore */ }
+  }
+
+  async function loadAlternatives() {
+    if (altStreamsReady) return altByName;
+    altStreamsReady = true;
+    loadAltFromStorage();
+    let fetched = 0;
+    for (const src of ALT_SOURCES) {
+      try {
+        const text = await fetchPlaylistText(src);
+        const entries = parseM3u8(text);
+        for (const e of entries) {
+          const key = normalizeName(e.name);
+          if (!key) continue;
+          if (!altByName.has(key)) altByName.set(key, []);
+          const arr = altByName.get(key);
+          if (!arr.some(a => a.url === e.url)) {
+            arr.push({ url: e.url, source: src, at: Date.now() });
+            fetched++;
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal muat playlist alternatif ' + src + ':', err.message);
+      }
+    }
+    // Attach alternatif ke stasiun TV (nama, kota, provinsi).
+    pageStations().filter((s) => s.type === 'tv').forEach((s) => {
+      const alts = collectAlts(s);
+      if (alts.length) s.alternatives = alts;
+    });
+    saveAltToStorage();
+    return altByName;
+  }
+
+  function collectAlts(station) {
+    const keys = [
+      normalizeName(station.name),
+      normalizeName(station.city || ''),
+      normalizeName(station.province || ''),
+      normalizeName((station.city || '') + ' ' + (station.province || '')),
+    ];
+    const seen = new Set();
+    const out = [];
+    for (const k of keys) {
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      const arr = altByName.get(k) || [];
+      for (const a of arr) {
+        if (!seen.has(a.url)) { seen.add(a.url); out.push(a.url); }
+      }
+    }
+    return out;
+  }
+
   let lastRefresh = Number(localStorage.getItem(LAST_REFRESH_KEY)) || 0;
   let offlineMarks = loadOfflineMarks();
   let refreshing = false;
@@ -608,7 +723,7 @@
       }
     }
     if (!playlistText) return { levelIndex, cached: 0 };
-    const segments = parseSegments(playlistText, playlistUrl).slice(0, 4);
+    const segments = parseSegments(playlistText, playlistUrl).slice(0, 10);
     let done = 0;
     for (const seg of segments) {
       if (signal && signal.aborted) break;
@@ -711,6 +826,16 @@
     document.body.classList.remove('video-open');
   }
 
+  // Susun daftar candidate stream: utama dulu, baru alternatif dari playlist eksternal.
+  function streamCandidates(station) {
+    const list = [];
+    if (station.stream) list.push(station.stream);
+    if (Array.isArray(station.alternatives)) {
+      for (const u of station.alternatives) if (!list.includes(u)) list.push(u);
+    }
+    return list;
+  }
+
   function playVideo(station) {
     videoSession++;
     if (prefetchAbort) { try { prefetchAbort.abort(); } catch { /* ignore */ } prefetchAbort = null; }
@@ -728,36 +853,85 @@
     videoModal.hidden = false;
     setVideoStatus('Memuat stream…');
 
-    if (!station.stream) { setVideoStatus('Stream tidak tersedia.'); return; }
+    loadAlternatives();
+    if (!station.stream && (!Array.isArray(station.alternatives) || !station.alternatives.length)) {
+      setVideoStatus('Stream tidak tersedia.');
+      return;
+    }
+    tryNextStream(station, 0);
+  }
 
-    const url = station.stream;
+  async function tryNextStream(station, index) {
+    if (videoStation !== station) return;
+    const candidates = streamCandidates(station);
+    if (index >= candidates.length) {
+      setVideoStatus('Semua stream gagal diputar. Kanal mungkin offline atau geo-blocked.');
+      markOffline(station, 'Semua alternatif gagal (geo-blocked/CORS).');
+      return;
+    }
+    const url = candidates[index];
     const isHls = /\.m3u8(\?|$)/i.test(url) || /playlist\.m3u8/i.test(url);
+    setVideoStatus(index === 0 ? 'Memuat stream…' : `Mencoba alternatif ${index + 1}/${candidates.length}…`);
 
     if (!isHls || !window.Hls || !window.Hls.isSupported()) {
       videoPlayer.src = url;
-      videoPlayer.play().catch(() => setVideoStatus('Klik tombol putar pada video.'));
-      setVideoStatus('Sedang ditonton');
+      videoPlayer.play().then(() => {
+        setVideoStatus('Sedang ditonton');
+        markOnline(station);
+      }).catch((err) => {
+        setVideoStatus('Klik tombol putar pada video.');
+        videoPlayer.onerror = () => tryNextStream(station, index + 1);
+      });
       return;
     }
 
-    startHlsVideo(station, url, videoSession);
+    startHlsVideo(station, url, videoSession, index, candidates.length);
   }
 
-  async function startHlsVideo(station, url, session) {
+  // Konfigurasi hls.js yang dioptimalkan untuk stabilitas pada jaringan jelek.
+  // Buffer lebih besar, timeout lebih lama, mulai dari kualitas rendah, dan
+  // matikan low-latency mode (lebih stabil, sedikit latensi lebih tinggi).
+  function stableHlsConfig(extra) {
+    const cfg = {
+      enableWorker: true,
+      lowLatencyMode: false,
+      startLevel: -1,
+      capLevelToPlayerSize: false,
+      autoStartLoad: true,
+      maxBufferLength: 60,
+      maxMaxBufferLength: 120,
+      maxBufferSize: 60 * 1000 * 1000,
+      maxBufferHole: 2,
+      fragLoadingTimeOut: 30000,
+      manifestLoadingTimeOut: 30000,
+      fragLoadingMaxRetry: 4,
+      fragLoadingMaxRetryTimeout: 15000,
+      manifestLoadingMaxRetry: 3,
+      manifestLoadingMaxRetryTimeout: 15000,
+      startFragPrefetch: true,
+      appendErrorMaxRetry: 3,
+      nudgeOffset: 0.1,
+      nudgeMaxRetry: 3,
+    };
+    if (extra) Object.assign(cfg, extra);
+    return cfg;
+  }
+
+  async function startHlsVideo(station, url, session, index, total) {
+    if (session !== videoSession || videoStation !== station) return;
     let startLevel = -1;
     let useCacheLoader = false;
     if (cacheVideo && videoCacheSupported()) {
       useCacheLoader = true;
       prefetchAbort = new AbortController();
-      setVideoStatus('Menyimpan video ke cache… 0%');
+      setVideoStatus(index === 0 ? 'Menyimpan video ke cache… 0%' : `Menyimpan alternatif… ${Math.round((index / total) * 100)}%`);
       try {
-        // Batasi waktu pramuat agar pemutaran tidak tertunda terlalu lama.
-        const budget = new Promise((resolve) => setTimeout(() => resolve(null), 6000));
+        const budget = new Promise((resolve) => setTimeout(() => resolve(null), 7000));
         const info = await Promise.race([
           prefetchHls(url, prefetchAbort.signal),
           budget,
         ]);
-        if (session !== videoSession) return;
+        if (session !== videoSession || videoStation !== station) return;
         if (!info) {
           try { prefetchAbort.abort(); } catch { /* ignore */ }
         } else if (info.levelIndex >= 0) {
@@ -769,24 +943,40 @@
     }
 
     setVideoStatus('Memuat stream…');
-    const cfg = { enableWorker: true, lowLatencyMode: true };
-    if (useCacheLoader) cfg.loader = createCachingLoader();
+    const cfg = stableHlsConfig(useCacheLoader ? { loader: createCachingLoader() } : {});
     if (startLevel >= 0) cfg.startLevel = startLevel;
 
     videoHls = new window.Hls(cfg);
     videoHls.loadSource(url);
     videoHls.attachMedia(videoPlayer);
+    let resolved = false;
     videoHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+      if (resolved) return;
+      resolved = true;
       setVideoStatus('Sedang ditonton');
       markOnline(station);
       videoPlayer.play().catch(() => setVideoStatus('Klik tombol putar pada video.'));
     });
     videoHls.on(window.Hls.Events.ERROR, (_, data) => {
+      if (resolved) return;
       if (data && data.fatal) {
-        setVideoStatus('Gagal memuat stream. Kanal ditandai offline (bisa geo-blocked/CORS).');
-        markOffline(station, 'Gagal diputar di browser ini (bisa geo-blocked/CORS).');
+        resolved = true;
+        // Coba alternatif berikutnya.
+        tryNextStream(station, index + 1);
       }
     });
+    // Jika video macet/terputus lama, coba alternatif berikutnya.
+    const onStalled = () => {
+      if (resolved || !videoStation || videoStation !== station) return;
+      resolved = true;
+      tryNextStream(station, index + 1);
+    };
+    videoPlayer.addEventListener('stalled', onStalled, { once: true });
+    videoPlayer.addEventListener('error', () => {
+      if (resolved) return;
+      resolved = true;
+      tryNextStream(station, index + 1);
+    }, { once: true });
   }
 
   function playAudio(station) {
@@ -809,7 +999,7 @@
     const isHls = /\.m3u8(\?|$)/i.test(url) || /chunklist|\.mpd/i.test(url);
 
     if (isHls && window.Hls && window.Hls.isSupported()) {
-      hls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
+      hls = new window.Hls(stableHlsConfig());
       hls.loadSource(url);
       hls.attachMedia(a);
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
@@ -1038,6 +1228,7 @@
   // --- Init ---
   render();
   renderProvinsi();
+  loadAlternatives();
   applyView();
   updateInfoBar();
   window.TVRadio = {
