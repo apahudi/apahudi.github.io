@@ -15,6 +15,10 @@
   const OFFLINE_KEY = 'tvradio_offline_marks';
   const VIEW_KEY = 'tvradio_view';
   const HIDE_KEY = 'tvradio_hide_offline';
+  const SORT_KEY = 'tvradio_tv_sort';
+  const CACHE_KEY = 'tvradio_cache_video';
+  const VIDEO_CACHE_NAME = 'tvradio-video-v1';
+  const MAX_CACHE_ENTRIES = 80;
 
   function dedupe(list) {
     const seen = new Set();
@@ -46,6 +50,16 @@
   const updateText = document.getElementById('update-text');
   const hideOfflineInput = document.getElementById('hide-offline');
   const viewToggle = document.getElementById('view-toggle');
+  const sortGroup = document.getElementById('sort-group');
+  const cacheToggle = document.getElementById('cache-video');
+
+  // Donation modal
+  const donateBtn = document.getElementById('donate-btn');
+  const donateModal = document.getElementById('donate-modal');
+  const donateClose = document.getElementById('donate-close');
+  const donateBackdrop = document.getElementById('donate-backdrop');
+  const donateCopy = document.getElementById('donate-copy');
+  const DONATE_NUMBER = '085323073037';
 
   // Audio player
   const fp = document.getElementById('floating-player');
@@ -78,6 +92,10 @@
   let provinceFilter = '';
   let gridView = (localStorage.getItem(VIEW_KEY) || 'grid') === 'grid';
   let hideOffline = (localStorage.getItem(HIDE_KEY) || 'true') === 'true';
+  let tvSort = localStorage.getItem(SORT_KEY) || 'name';
+  let cacheVideo = localStorage.getItem(CACHE_KEY) === 'true';
+  let prefetchAbort = null;
+  let videoSession = 0;
   let lastRefresh = Number(localStorage.getItem(LAST_REFRESH_KEY)) || 0;
   let offlineMarks = loadOfflineMarks();
   let refreshing = false;
@@ -283,6 +301,43 @@
     return s.category === filter;
   }
 
+  // --- Urutan kanal TV: nama / lokasi / kategori ---
+  function sortItems(items) {
+    if (!isTv) return items;
+    const arr = items.slice();
+    const byName = (a, b) => String(a.name || '')
+      .localeCompare(String(b.name || ''), 'id', { numeric: true, sensitivity: 'base' });
+    if (tvSort === 'location') {
+      arr.sort((a, b) =>
+        String(regionOf(a)).localeCompare(String(regionOf(b)), 'id', { sensitivity: 'base' }) ||
+        String(a.city || '').localeCompare(String(b.city || ''), 'id', { sensitivity: 'base' }) ||
+        byName(a, b));
+    } else if (tvSort === 'category') {
+      arr.sort((a, b) =>
+        String(a.category || 'lainnya').localeCompare(String(b.category || 'lainnya'), 'id', { sensitivity: 'base' }) ||
+        byName(a, b));
+    } else {
+      arr.sort(byName);
+    }
+    return arr;
+  }
+
+  function syncSortUI() {
+    if (!sortGroup) return;
+    sortGroup.querySelectorAll('.sort-btn').forEach((b) => {
+      const active = b.dataset.sort === tvSort;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', String(active));
+    });
+  }
+
+  function applySort(value) {
+    tvSort = ['name', 'location', 'category'].includes(value) ? value : 'name';
+    try { localStorage.setItem(SORT_KEY, tvSort); } catch { /* ignore */ }
+    syncSortUI();
+    render();
+  }
+
   function visibleStation(s) {
     return s.type === page &&
       !(hideOffline && statusOf(s) === 'offline') &&
@@ -341,10 +396,23 @@
 
     const favBtn = row.querySelector('.row-fav');
     const playBtn = row.querySelector('.row-play');
+    // Di TV, baris adalah satu-satunya target fokus remote.
+    if (isTv) {
+      favBtn.tabIndex = -1;
+      playBtn.tabIndex = -1;
+    }
 
     const play = (e) => {
       if (e) e.stopPropagation();
       playStation(station);
+    };
+    const toggleFav = (e) => {
+      if (e) e.stopPropagation();
+      toggleFavorite(station.id);
+      const active = isFavorite(station.id);
+      favBtn.classList.toggle('active', active);
+      favBtn.textContent = active ? '♥' : '♡';
+      favBtn.setAttribute('aria-pressed', String(active));
     };
     row.addEventListener('click', (e) => {
       if (e.target.closest('.row-fav')) return;
@@ -352,24 +420,22 @@
     });
     row.addEventListener('keydown', (e) => {
       if (e.target.closest('.row-fav')) return;
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play(); }
+      const key = e.key;
+      if (key === 'f' || key === 'F') { e.preventDefault(); toggleFav(); return; }
+      if (key === 'Enter' || key === ' ') { e.preventDefault(); play(); }
+    });
+    row.addEventListener('focus', () => {
+      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     });
     playBtn.addEventListener('click', play);
-    favBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleFavorite(station.id);
-      const active = isFavorite(station.id);
-      favBtn.classList.toggle('active', active);
-      favBtn.textContent = active ? '♥' : '♡';
-      favBtn.setAttribute('aria-pressed', String(active));
-    });
+    favBtn.addEventListener('click', toggleFav);
 
     if (currentStation && currentStation.id === station.id) row.classList.add('is-playing');
     return row;
   }
 
   function render() {
-    const items = stations.filter(visibleStation);
+    const items = sortItems(stations.filter(visibleStation));
     const frag = document.createDocumentFragment();
     items.forEach((s) => frag.appendChild(createRow(s)));
     listEl.replaceChildren(frag);
@@ -446,19 +512,216 @@
     fpPlay.textContent = '▶';
   }
 
+  // --- Cache video (Cache Storage) ---
+  function videoCacheSupported() {
+    return 'caches' in window && window.isSecureContext;
+  }
+
+  function openVideoCache() {
+    return caches.open(VIDEO_CACHE_NAME);
+  }
+
+  async function pruneVideoCache() {
+    try {
+      const cache = await openVideoCache();
+      const keys = await cache.keys();
+      const extra = keys.length - MAX_CACHE_ENTRIES;
+      for (let i = 0; i < extra; i++) await cache.delete(keys[i]);
+    } catch { /* ignore */ }
+  }
+
+  function fetchWithTimeout(url, ms, outerSignal) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    if (outerSignal) {
+      if (outerSignal.aborted) ctrl.abort();
+      else outerSignal.addEventListener('abort', () => ctrl.abort(), { once: true });
+    }
+    return fetch(url, { signal: ctrl.signal, cache: 'no-store' })
+      .finally(() => clearTimeout(timer));
+  }
+
+  async function fetchCachedText(cache, url, signal) {
+    const hit = await cache.match(url);
+    if (hit) return hit.text();
+    const res = await fetchWithTimeout(url, 12000, signal);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    try {
+      await cache.put(url, new Response(text, {
+        headers: { 'Content-Type': 'application/vnd.apple.mpegurl', 'X-TVRadio-Text': '1' },
+      }));
+    } catch { /* ignore */ }
+    return text;
+  }
+
+  // Pilih varian kualitas terendah (paling ringan untuk jaringan jelek).
+  function parseVariant(playlist, baseUrl) {
+    const lines = playlist.split(/\r?\n/);
+    let best = null;
+    let bestBw = Infinity;
+    let index = -1;
+    let level = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line.startsWith('#EXT-X-STREAM-INF')) continue;
+      const bw = Number((line.match(/BANDWIDTH=(\d+)/) || [])[1] || 0);
+      const next = lines.slice(i + 1).find((l) => l.trim() && !l.trim().startsWith('#'));
+      if (next && bw < bestBw) { bestBw = bw; best = next.trim(); index = level; }
+      level++;
+    }
+    if (!best) return null;
+    return { url: new URL(best, baseUrl).href, levelIndex: index };
+  }
+
+  function parseSegments(playlist, baseUrl) {
+    const lines = playlist.split(/\r?\n/);
+    const urls = [];
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('#EXT-X-MAP:')) {
+        const m = line.match(/URI="([^"]+)"/);
+        if (m) urls.push(new URL(m[1], baseUrl).href);
+        continue;
+      }
+      if (line.startsWith('#')) continue;
+      urls.push(new URL(line, baseUrl).href);
+    }
+    return urls;
+  }
+
+  // Unduh playlist + beberapa segmen pertama ke Cache Storage sebelum diputar.
+  async function prefetchHls(url, signal) {
+    if (!videoCacheSupported()) return null;
+    const cache = await openVideoCache();
+    const master = await fetchCachedText(cache, url, signal);
+    let playlistUrl = url;
+    let playlistText = master;
+    let levelIndex = -1;
+    if (master && master.includes('#EXT-X-STREAM-INF')) {
+      const variant = parseVariant(master, url);
+      if (variant) {
+        playlistUrl = variant.url;
+        levelIndex = variant.levelIndex;
+        playlistText = await fetchCachedText(cache, playlistUrl, signal);
+      }
+    }
+    if (!playlistText) return { levelIndex, cached: 0 };
+    const segments = parseSegments(playlistText, playlistUrl).slice(0, 4);
+    let done = 0;
+    for (const seg of segments) {
+      if (signal && signal.aborted) break;
+      if (await cache.match(seg)) { done++; continue; }
+      setVideoStatus(`Menyimpan video ke cache… ${Math.round((done / segments.length) * 100)}%`);
+      try {
+        const res = await fetchWithTimeout(seg, 12000, signal);
+        if (!res.ok) continue;
+        const buf = await res.arrayBuffer();
+        await cache.put(seg, new Response(buf, {
+          headers: { 'Content-Type': res.headers.get('Content-Type') || 'video/mp2t' },
+        }));
+        done++;
+      } catch { /* lanjut ke segmen lain */ }
+    }
+    await pruneVideoCache();
+    return { levelIndex, cached: done };
+  }
+
+  // Loader hls.js: pakai cache bila ada, simpan respons baru ke cache.
+  function createCachingLoader() {
+    const Base = window.Hls.DefaultConfig.loader;
+
+    function CachingLoader(config) {
+      this.inner = new Base(config);
+      this.stats = this.inner.stats;
+      window.__clCreated = (window.__clCreated || 0) + 1;
+    }
+    CachingLoader.prototype.load = function (context, config, callbacks) {
+      const self = this;
+      const url = context.url;
+      window.__clLoads = (window.__clLoads || 0) + 1;
+      window.__clUrls = (window.__clUrls || []).concat(url.slice(-40));
+      const canCache = cacheVideo && /^https?:/i.test(url) &&
+        context.rangeStart == null && context.rangeEnd == null;
+      window.__clCanCache = (window.__clCanCache || 0) + (canCache ? 1 : 0);
+      if (!canCache) { self.inner.load(context, config, callbacks); return; }
+
+      openVideoCache().then((cache) => cache.match(url)).then((hit) => {
+        if (!hit) {
+          const wrapped = {
+            onSuccess(response, stats, ctx, networkDetails) {
+              try {
+                if (response && response.data != null) {
+                  const isText = typeof response.data === 'string';
+                  const body = isText ? response.data : response.data.slice(0);
+                  const headers = { 'X-TVRadio-Text': isText ? '1' : '0' };
+                  const ct = networkDetails && networkDetails.getResponseHeader
+                    ? networkDetails.getResponseHeader('Content-Type') : null;
+                  if (ct) headers['Content-Type'] = ct;
+                  cache.put(url, new Response(body, { headers })).then(pruneVideoCache).catch(() => {});
+                }
+              } catch { /* ignore */ }
+              callbacks.onSuccess(response, stats, ctx, networkDetails);
+            },
+            onError: callbacks.onError,
+            onTimeout: callbacks.onTimeout,
+            onProgress: callbacks.onProgress,
+          };
+          self.inner.load(context, config, wrapped);
+          return;
+        }
+        const isText = hit.headers.get('X-TVRadio-Text') === '1';
+        const read = isText ? hit.text() : hit.arrayBuffer();
+        read.then((data) => {
+          const stats = self.inner.stats;
+          const size = typeof data === 'string' ? data.length : data.byteLength;
+          stats.loaded = size;
+          stats.total = size;
+          stats.loading.start = stats.loading.start || performance.now();
+          stats.loading.first = performance.now();
+          stats.loading.end = performance.now();
+          stats.bwEstimate = Math.max(stats.bwEstimate || 0, 8000000);
+          callbacks.onSuccess({ url, data, code: 200 }, stats, context, hit);
+        }).catch(() => self.inner.load(context, config, callbacks));
+      }).catch(() => self.inner.load(context, config, callbacks));
+    };
+    CachingLoader.prototype.abort = function () {
+      try { this.inner.abort(); } catch { /* ignore */ }
+    };
+    CachingLoader.prototype.destroy = function () {
+      try { this.inner.destroy(); } catch { /* ignore */ }
+    };
+    CachingLoader.prototype.getCacheAge = function () {
+      return this.inner.getCacheAge ? this.inner.getCacheAge() : null;
+    };
+    CachingLoader.prototype.getResponseHeader = function (name) {
+      return this.inner.getResponseHeader ? this.inner.getResponseHeader(name) : null;
+    };
+    return CachingLoader;
+  }
+
   function closeVideo() {
+    videoSession++;
+    if (prefetchAbort) { try { prefetchAbort.abort(); } catch { /* ignore */ } prefetchAbort = null; }
     videoStation = null;
     if (videoHls) { try { videoHls.destroy(); } catch { /* ignore */ } videoHls = null; }
     if (videoPlayer) { videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load(); }
     videoModal.hidden = true;
+    document.body.classList.remove('video-open');
   }
 
   function playVideo(station) {
+    videoSession++;
+    if (prefetchAbort) { try { prefetchAbort.abort(); } catch { /* ignore */ } prefetchAbort = null; }
     if (audio) { audio.pause(); audio.removeAttribute('src'); audio.load(); }
     if (hls) { try { hls.destroy(); } catch { /* ignore */ } hls = null; }
+    currentStation = null;
+    markPlayingRow();
     fp.hidden = true;
     videoStation = station;
     document.body.classList.remove('player-open');
+    document.body.classList.add('video-open');
 
     videoTitle.textContent = station.name || 'Channel TV';
     videoSub.textContent = regionOf(station);
@@ -470,26 +733,60 @@
     const url = station.stream;
     const isHls = /\.m3u8(\?|$)/i.test(url) || /playlist\.m3u8/i.test(url);
 
-    if (isHls && window.Hls && window.Hls.isSupported()) {
-      videoHls = new window.Hls({ enableWorker: true, lowLatencyMode: true });
-      videoHls.loadSource(url);
-      videoHls.attachMedia(videoPlayer);
-      videoHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-        setVideoStatus('Sedang ditonton');
-        markOnline(station);
-        videoPlayer.play().catch(() => setVideoStatus('Klik tombol putar pada video.'));
-      });
-      videoHls.on(window.Hls.Events.ERROR, (_, data) => {
-        if (data && data.fatal) {
-          setVideoStatus('Gagal memuat stream. Kanal ditandai offline (bisa geo-blocked/CORS).');
-          markOffline(station, 'Gagal diputar di browser ini (bisa geo-blocked/CORS).');
-        }
-      });
-    } else {
+    if (!isHls || !window.Hls || !window.Hls.isSupported()) {
       videoPlayer.src = url;
       videoPlayer.play().catch(() => setVideoStatus('Klik tombol putar pada video.'));
       setVideoStatus('Sedang ditonton');
+      return;
     }
+
+    startHlsVideo(station, url, videoSession);
+  }
+
+  async function startHlsVideo(station, url, session) {
+    let startLevel = -1;
+    let useCacheLoader = false;
+    if (cacheVideo && videoCacheSupported()) {
+      useCacheLoader = true;
+      prefetchAbort = new AbortController();
+      setVideoStatus('Menyimpan video ke cache… 0%');
+      try {
+        // Batasi waktu pramuat agar pemutaran tidak tertunda terlalu lama.
+        const budget = new Promise((resolve) => setTimeout(() => resolve(null), 6000));
+        const info = await Promise.race([
+          prefetchHls(url, prefetchAbort.signal),
+          budget,
+        ]);
+        if (session !== videoSession) return;
+        if (!info) {
+          try { prefetchAbort.abort(); } catch { /* ignore */ }
+        } else if (info.levelIndex >= 0) {
+          startLevel = info.levelIndex;
+        }
+      } catch { /* cache gagal, lanjut streaming biasa */ }
+      prefetchAbort = null;
+      if (session !== videoSession || videoStation !== station) return;
+    }
+
+    setVideoStatus('Memuat stream…');
+    const cfg = { enableWorker: true, lowLatencyMode: true };
+    if (useCacheLoader) cfg.loader = createCachingLoader();
+    if (startLevel >= 0) cfg.startLevel = startLevel;
+
+    videoHls = new window.Hls(cfg);
+    videoHls.loadSource(url);
+    videoHls.attachMedia(videoPlayer);
+    videoHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
+      setVideoStatus('Sedang ditonton');
+      markOnline(station);
+      videoPlayer.play().catch(() => setVideoStatus('Klik tombol putar pada video.'));
+    });
+    videoHls.on(window.Hls.Events.ERROR, (_, data) => {
+      if (data && data.fatal) {
+        setVideoStatus('Gagal memuat stream. Kanal ditandai offline (bisa geo-blocked/CORS).');
+        markOffline(station, 'Gagal diputar di browser ini (bisa geo-blocked/CORS).');
+      }
+    });
   }
 
   function playAudio(station) {
@@ -629,6 +926,82 @@
       render();
     });
   }
+
+  // --- Urutkan kanal TV ---
+  if (sortGroup) {
+    sortGroup.querySelectorAll('.sort-btn').forEach((btn) => {
+      btn.addEventListener('click', () => applySort(btn.dataset.sort || 'name'));
+    });
+    syncSortUI();
+  }
+
+  // --- Cache video on/off ---
+  function setCacheVideo(value, notify) {
+    const want = Boolean(value);
+    if (want && !videoCacheSupported()) {
+      cacheVideo = false;
+      if (cacheToggle) cacheToggle.checked = false;
+      if (notify) toast('Cache video tidak didukung di perangkat ini');
+      return false;
+    }
+    cacheVideo = want;
+    if (cacheToggle) cacheToggle.checked = cacheVideo;
+    try { localStorage.setItem(CACHE_KEY, String(cacheVideo)); } catch { /* ignore */ }
+    if (notify) {
+      toast(cacheVideo
+        ? 'Cache video aktif — video disimpan dulu sebelum diputar'
+        : 'Cache video nonaktif');
+    }
+    return true;
+  }
+  if (cacheToggle) {
+    cacheToggle.checked = cacheVideo;
+    cacheToggle.addEventListener('change', () => setCacheVideo(cacheToggle.checked, true));
+  }
+
+  // --- Donasi DANA ---
+  function openDonate() {
+    if (!donateModal) return;
+    donateModal.hidden = false;
+    document.body.classList.add('donate-open');
+    if (donateClose) donateClose.focus();
+  }
+  function closeDonate() {
+    if (!donateModal || donateModal.hidden) return;
+    donateModal.hidden = true;
+    document.body.classList.remove('donate-open');
+    if (donateBtn) donateBtn.focus();
+  }
+  async function copyDonateNumber() {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(DONATE_NUMBER);
+        toast(`Nomor DANA disalin: ${DONATE_NUMBER}`);
+        return;
+      }
+      throw new Error('clipboard tidak tersedia');
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = DONATE_NUMBER;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch { /* ignore */ }
+      ta.remove();
+      toast(ok ? `Nomor DANA disalin: ${DONATE_NUMBER}` : `Nomor DANA: ${DONATE_NUMBER}`);
+    }
+  }
+  if (donateBtn) donateBtn.addEventListener('click', openDonate);
+  if (donateClose) donateClose.addEventListener('click', closeDonate);
+  if (donateBackdrop) donateBackdrop.addEventListener('click', closeDonate);
+  if (donateCopy) donateCopy.addEventListener('click', copyDonateNumber);
+  if (donateModal) {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !donateModal.hidden) closeDonate();
+    });
+  }
   if (location.protocol !== 'file:') {
     if (!lastRefresh || Date.now() - lastRefresh >= AUTO_REFRESH_MS) refreshData(false);
     setInterval(() => {
@@ -681,5 +1054,20 @@
       if (hideOfflineInput) hideOfflineInput.checked = hideOffline;
       render();
     },
+    setSort: (value) => applySort(value),
+    getSort: () => tvSort,
+    setCacheVideo: (value) => setCacheVideo(value, false),
+    getCacheVideo: () => cacheVideo,
+    cacheInfo: async () => {
+      if (!videoCacheSupported()) return { supported: false, entries: 0 };
+      const cache = await openVideoCache();
+      const keys = await cache.keys();
+      return { supported: true, entries: keys.length };
+    },
+    clearCache: async () => {
+      if (!videoCacheSupported()) return false;
+      try { return await caches.delete(VIDEO_CACHE_NAME); } catch { return false; }
+    },
+    openDonate,
   };
 })();

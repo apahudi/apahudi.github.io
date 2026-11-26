@@ -13,14 +13,25 @@ TV_FILTERS = [
     ("religi", "Religi"), ("olahraga", "Olahraga"), ("film", "Film"),
 ]
 
+TV_CONTROLS = '''        <div class="sort-group" id="sort-group" role="group" aria-label="Urutkan kanal">
+          <span class="sort-label">Urut:</span>
+          <button type="button" class="sort-btn active" data-sort="name" aria-pressed="true">Nama</button>
+          <button type="button" class="sort-btn" data-sort="location" aria-pressed="false">Lokasi</button>
+          <button type="button" class="sort-btn" data-sort="category" aria-pressed="false">Kategori</button>
+        </div>
+        <label class="cache-toggle" title="Simpan sebagian video ke perangkat sebelum diputar (khusus stream HLS)">
+          <input type="checkbox" id="cache-video" /> Cache video
+        </label>'''
+
 TEMPLATE = '''<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>{title} | RadioTV Indonesia</title>
+  <title>{title} | TVRadioID</title>
   <meta name="description" content="{description}" />
-  <link rel="stylesheet" href="style.css?v=12" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="stylesheet" href="style.css?v=15" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -28,18 +39,26 @@ TEMPLATE = '''<!DOCTYPE html>
 <body data-page="{page}">
   <header class="header">
     <div class="container nav">
-      <a href="radio.html" class="logo" aria-label="RadioTV Indonesia">Radio<span>TV</span> Indonesia</a>
-      <button class="nav-toggle" aria-label="Buka menu" aria-expanded="false">
-        <span class="bar"></span><span class="bar"></span><span class="bar"></span>
-      </button>
-      <nav class="nav-menu" id="nav-menu">
-        <button type="button" class="nav-close" aria-label="Tutup menu">✕</button>
-        <ul role="menubar">
-          <li role="none"><a href="radio.html" role="menuitem"{radio_active}>Radio</a></li>
-          <li role="none"><a href="tv.html" role="menuitem"{tv_active}>TV</a></li>
-          <li role="none"><a href="{self}#provinsi" role="menuitem">Provinsi</a></li>
-        </ul>
-      </nav>
+      <a href="radio.html" class="brand" aria-label="TVRadioID — dari apahudi untuk negeri">
+        <span class="logo">TV<span>Radio</span>ID</span>
+        <span class="tagline">dari apahudi untuk negeri</span>
+      </a>
+      <div class="nav-right">
+        <button type="button" class="donate-btn" id="donate-btn" aria-label="Donasi via DANA" title="Donasi via DANA">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 21s-7.6-4.8-9.5-9.1A5.7 5.7 0 0 1 12 5.5a5.7 5.7 0 0 1 9.5 6.4C19.6 16.2 12 21 12 21z"/></svg>
+        </button>
+        <button class="nav-toggle" aria-label="Buka menu" aria-expanded="false">
+          <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+        </button>
+        <nav class="nav-menu" id="nav-menu">
+          <button type="button" class="nav-close" aria-label="Tutup menu">✕</button>
+          <ul role="menubar">
+            <li role="none"><a href="radio.html" role="menuitem"{radio_active}>Radio</a></li>
+            <li role="none"><a href="tv.html" role="menuitem"{tv_active}>TV</a></li>
+            <li role="none"><a href="{self}#provinsi" role="menuitem">Provinsi</a></li>
+          </ul>
+        </nav>
+      </div>
     </div>
   </header>
 
@@ -49,6 +68,7 @@ TEMPLATE = '''<!DOCTYPE html>
         <button type="button" class="refresh-btn" id="refresh-btn" title="Muat ulang daftar dari stations.json">🔄 Perbarui</button>
         <button type="button" class="view-toggle" id="view-toggle" aria-pressed="true" title="Ubah ke tampilan daftar">☰ Daftar</button>
         <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline</label>
+{tv_controls}
         <span class="count" id="station-count" aria-live="polite"></span>
       </div>
       <div class="category-tabs" id="filter-tabs" role="tablist" aria-label="Filter">
@@ -79,6 +99,24 @@ TEMPLATE = '''<!DOCTYPE html>
     </div>
   </footer>
 
+  <!-- Donasi -->
+  <div class="donate-modal" id="donate-modal" hidden>
+    <div class="donate-backdrop" id="donate-backdrop"></div>
+    <div class="donate-card" role="dialog" aria-modal="true" aria-labelledby="donate-title">
+      <button type="button" class="fp-close donate-close" id="donate-close" aria-label="Tutup">✕</button>
+      <div class="donate-heart">❤️</div>
+      <h2 id="donate-title">Dukung TVRadioID</h2>
+      <p class="donate-sub">Donasi via DANA</p>
+      <dl class="donate-details">
+        <div><dt>Nama</dt><dd>Moh Agus Budiman</dd></div>
+        <div><dt>Nomor DANA</dt><dd class="donate-number">085323073037</dd></div>
+      </dl>
+      <button type="button" class="donate-copy" id="donate-copy">Salin nomor DANA</button>
+      <p class="donate-note">Terima kasih atas dukungan Anda.</p>
+    </div>
+  </div>
+
+  <!-- Pemutar TV fullscreen -->
   <div class="video-modal" id="video-modal" hidden>
     <div class="video-modal-backdrop" id="video-backdrop"></div>
     <div class="video-modal-box" role="dialog" aria-modal="true" aria-labelledby="video-title">
@@ -119,7 +157,7 @@ TEMPLATE = '''<!DOCTYPE html>
 
   <script src="hls.min.js?v=1"></script>
   <script src="stations-data.js?v=1"></script>
-  <script src="script.js?v=10"></script>
+  <script src="script.js?v=14"></script>
 </body>
 </html>
 '''
@@ -137,18 +175,20 @@ def build(page):
     if page == "radio":
         data = dict(
             page="radio", title="Radio Indonesia",
-            description="Dengarkan stasiun radio streaming dari seluruh Indonesia.",
+            description="Dengarkan stasiun radio streaming dari seluruh Indonesia di TVRadioID.",
             self="radio.html",
             radio_active=' aria-current="page"', tv_active="",
             tabs=tabs_html(RADIO_FILTERS),
+            tv_controls="",
         )
     else:
         data = dict(
             page="tv", title="TV Indonesia",
-            description="Nonton channel televisi live streaming dari seluruh Indonesia.",
+            description="Nonton channel televisi live streaming dari seluruh Indonesia di TVRadioID.",
             self="tv.html",
             radio_active="", tv_active=' aria-current="page"',
             tabs=tabs_html(TV_FILTERS),
+            tv_controls=TV_CONTROLS,
         )
     (ROOT / f"{page}.html").write_text(TEMPLATE.format(**data), encoding="utf-8")
     print(f"written {page}.html")
