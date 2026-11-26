@@ -62,6 +62,7 @@
   const refreshBtn = document.getElementById('refresh-btn');
   const updateText = document.getElementById('update-text');
   const hideOfflineInput = document.getElementById('hide-offline');
+  const autoNextInput = document.getElementById('auto-next-buffer');
   const viewToggle = document.getElementById('view-toggle');
   const sortGroup = document.getElementById('sort-group');
   const cacheSizeSelect = document.getElementById('cache-size');
@@ -118,6 +119,8 @@
     .split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
   let gridView = (localStorage.getItem(VIEW_KEY) || 'grid') === 'grid';
   let hideOffline = (localStorage.getItem(HIDE_KEY) || 'true') === 'true';
+  const AUTO_NEXT_KEY = 'tvradio_autonext_buffer';
+  let autoNextOnBuffer = (localStorage.getItem(AUTO_NEXT_KEY) || 'true') === 'true';
   let tvSort = localStorage.getItem(SORT_KEY) || 'name';
   function normalizeCacheSize(v) {
     if (v === 'true') return 'medium';
@@ -732,6 +735,7 @@
 
   // --- Province chips ---
   function renderProvinsi() {
+    if (!provinsiGrid) return;
     const map = new Map();
     pageStations().forEach((s) => {
       const prov = s.province || 'Indonesia';
@@ -1108,6 +1112,13 @@
       setBufferStat(station.id, 10000);
       showVideoOverlay('Buffering > 10 detik', 'red');
       if (videoStatus) videoStatus.textContent = 'Buffering > 10 detik';
+      if (!autoNextOnBuffer) {
+        clearBufferWatchdog();
+        armBufferWatchdog();
+        showVideoOverlay('Menunggu buffering… (auto-next off)', 'yellow');
+        if (videoStatus) videoStatus.textContent = 'Menunggu buffering… (auto-next off)';
+        return;
+      }
       const move = window.confirm('Buffering lebih dari 10 detik. Pindah ke kanal berikutnya?\n\nOK = Pindah, Batal = Tetap menunggu.');
       if (session !== videoSession || videoStation !== station) return;
       if (move) {
@@ -1540,21 +1551,30 @@
     });
   }
 
-  // --- Tabs ---
+  // --- Filter kategori ---
   if (filterTabs) {
-    filterTabs.querySelectorAll('.tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        filterTabs.querySelectorAll('.tab').forEach((t) => {
-          t.classList.remove('active');
-          t.setAttribute('aria-selected', 'false');
-        });
-        tab.classList.add('active');
-        tab.setAttribute('aria-selected', 'true');
-        pageFilter = tab.dataset.filter || 'all';
+    if (filterTabs.tagName === 'SELECT') {
+      filterTabs.value = pageFilter;
+      filterTabs.addEventListener('change', () => {
+        pageFilter = filterTabs.value || 'all';
         if (scanning) stopScan('Scan dihentikan');
         render();
       });
-    });
+    } else {
+      filterTabs.querySelectorAll('.tab').forEach((tab) => {
+        tab.addEventListener('click', () => {
+          filterTabs.querySelectorAll('.tab').forEach((t) => {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+          });
+          tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
+          pageFilter = tab.dataset.filter || 'all';
+          if (scanning) stopScan('Scan dihentikan');
+          render();
+        });
+      });
+    }
   }
 
   // --- Search (opsional: hanya aktif bila kotak pencarian ada) ---
@@ -1622,6 +1642,13 @@
       hideOffline = hideOfflineInput.checked;
       try { localStorage.setItem(HIDE_KEY, hideOffline ? 'true' : 'false'); } catch { /* ignore */ }
       render();
+    });
+  }
+  if (autoNextInput) {
+    autoNextInput.checked = autoNextOnBuffer;
+    autoNextInput.addEventListener('change', () => {
+      autoNextOnBuffer = autoNextInput.checked;
+      try { localStorage.setItem(AUTO_NEXT_KEY, autoNextOnBuffer ? 'true' : 'false'); } catch { /* ignore */ }
     });
   }
 
