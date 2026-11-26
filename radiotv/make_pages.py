@@ -40,7 +40,7 @@ TEMPLATE = '''<!DOCTYPE html>
   <title>{title} | TVRadioID</title>
   <meta name="description" content="{description}" />
   <meta name="theme-color" content="#0f172a" />
-  <link rel="stylesheet" href="style.css?v=31" />
+  <link rel="stylesheet" href="style.css?v=32" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -148,6 +148,8 @@ TEMPLATE = '''<!DOCTYPE html>
         <div class="video-nav">
           <button type="button" class="video-nav-btn" id="video-prev" aria-label="Kanal sebelumnya">‹ Prev Channel</button>
           <button type="button" class="video-nav-btn" id="video-next" aria-label="Kanal berikutnya">Next Channel ›</button>
+          <button type="button" class="video-nav-btn" id="video-cc" aria-label="Subtitle" aria-pressed="false">CC</button>
+          <select id="video-cc-track" class="video-cc-select" aria-label="Pilih subtitle" hidden></select>
           <button class="fp-close" id="video-close" aria-label="Tutup pemutar video">✕</button>
         </div>
       </div>
@@ -193,7 +195,7 @@ TEMPLATE = '''<!DOCTYPE html>
 
   <script src="hls.min.js?v=1"></script>
   <script src="stations-data.js?v=8"></script>
-  <script src="script.js?v=35"></script>
+  <script src="script.js?v=36"></script>
 </body>
 </html>
 '''

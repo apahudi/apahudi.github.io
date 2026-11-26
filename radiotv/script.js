@@ -105,6 +105,8 @@
   const videoBackdrop = document.getElementById('video-backdrop');
   const videoPrev = document.getElementById('video-prev');
   const videoNext = document.getElementById('video-next');
+  const videoCc = document.getElementById('video-cc');
+  const videoCcTrack = document.getElementById('video-cc-track');
   const scanProgress = document.getElementById('scan-progress');
   const scanProgressFill = document.getElementById('scan-progress-fill');
   const scanProgressText = document.getElementById('scan-progress-text');
@@ -116,6 +118,9 @@
   let hls = null;
   let videoHls = null;
   let videoStation = null;
+  const CC_KEY = 'tvradio_cc';
+  let ccEnabled = (localStorage.getItem(CC_KEY) || 'en') !== 'off';
+  let ccTrackId = localStorage.getItem(CC_KEY) || 'en';
   let pageFilter = isTv ? 'nasional' : 'all';
   let searchQuery = '';
   let provinceFilter = '';
@@ -1237,6 +1242,7 @@
     videoStation = null;
     if (videoHls) { try { videoHls.destroy(); } catch { /* ignore */ } videoHls = null; }
     if (videoPlayer) { videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load(); }
+    syncCcUi();
     videoModal.hidden = true;
     document.body.classList.remove('video-open');
   }
@@ -1268,6 +1274,7 @@
     videoSub.textContent = regionOf(station);
     videoModal.hidden = false;
     setVideoStatus('Memuat stream…');
+    syncCcUi();
 
     loadAlternatives();
     if (!station.stream && (!Array.isArray(station.alternatives) || !station.alternatives.length)) {
@@ -1300,9 +1307,11 @@
 
     if (!isHls || !window.Hls || !window.Hls.isSupported()) {
       videoPlayer.src = url;
+      videoPlayer.onloadedmetadata = () => { syncCcUi(); applyCc(); };
       videoPlayer.play().then(() => {
         setVideoStatus('Sedang ditonton');
         markOnline(station);
+        syncCcUi(); applyCc();
       }).catch((err) => {
         setVideoStatus('Klik tombol putar pada video.');
         videoPlayer.onerror = () => tryNextStream(station, index + 1);
@@ -1312,6 +1321,104 @@
 
     startHlsVideo(station, url, videoSession, index, candidates.length);
   }
+
+  // --- Subtitle / CC (tahap 1: bawaan stream) ---
+  function ccTracks() {
+    if (videoHls && Array.isArray(videoHls.subtitleTracks) && videoHls.subtitleTracks.length) {
+      return videoHls.subtitleTracks.map((t, i) => ({ id: String(i), lang: (t.lang || '').toLowerCase(), label: t.name || t.lang || `Sub ${i + 1}`, hls: true, idx: i }));
+    }
+    const tt = videoPlayer ? Array.from(videoPlayer.textTracks || []) : [];
+    return tt.map((t, i) => ({ id: `tt:${i}`, lang: (t.language || '').toLowerCase(), label: t.label || t.language || `Sub ${i + 1}`, hls: false, idx: i, track: t }))
+      .filter(t => ['subtitles','captions'].includes((t.track && t.track.kind) || 'subtitles'));
+  }
+  function pickEnglishTrack(tracks) {
+    return tracks.find(t => t.lang === 'en' || t.lang.startsWith('en-') || /english/i.test(t.label))
+      || tracks.find(t => t.lang === 'eng')
+      || null;
+  }
+  function syncCcUi() {
+    const tracks = ccTracks();
+    const has = tracks.length > 0;
+    if (videoCc) {
+      videoCc.disabled = !has;
+      videoCc.setAttribute('aria-pressed', String(ccEnabled && has));
+      videoCc.classList.toggle('active', ccEnabled && has);
+      videoCc.title = has ? (ccEnabled ? 'Matikan subtitle' : 'Aktifkan subtitle') : 'Subtitle tidak tersedia';
+    }
+    if (videoCcTrack) {
+      videoCcTrack.hidden = !has;
+      videoCcTrack.innerHTML = '';
+      if (has) {
+        const off = document.createElement('option');
+        off.value = 'off'; off.textContent = 'CC: Off';
+        videoCcTrack.appendChild(off);
+        tracks.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id; opt.textContent = t.label || t.lang || t.id;
+          videoCcTrack.appendChild(opt);
+        });
+        const current = currentCcTrackId(tracks);
+        videoCcTrack.value = (!ccEnabled || !current) ? 'off' : current;
+      }
+    }
+  }
+  function currentCcTrackId(tracks) {
+    if (videoHls && Array.isArray(videoHls.subtitleTracks) && videoHls.subtitleTracks.length) {
+      const idx = videoHls.subtitleTrack;
+      return (idx >= 0 && tracks[idx]) ? tracks[idx].id : null;
+    }
+    const showing = tracks.find(t => t.track && t.track.mode === 'showing');
+    return showing ? showing.id : null;
+  }
+  function applyCc(tracks) {
+    tracks = tracks || ccTracks();
+    if (!tracks.length) {
+      if (videoHls) { try { videoHls.subtitleTrack = -1; videoHls.subtitleDisplay = false; } catch {} }
+      syncCcUi();
+      return;
+    }
+    let target = null;
+    if (ccEnabled) {
+      target = tracks.find(t => t.id === ccTrackId) || pickEnglishTrack(tracks) || tracks[0];
+    }
+    if (videoHls && Array.isArray(videoHls.subtitleTracks) && videoHls.subtitleTracks.length) {
+      try {
+        videoHls.subtitleDisplay = !!target;
+        videoHls.subtitleTrack = target ? target.idx : -1;
+      } catch {}
+    } else if (videoPlayer) {
+      Array.from(videoPlayer.textTracks || []).forEach((t, i) => {
+        if (['subtitles','captions'].includes(t.kind)) t.mode = (target && target.idx === i) ? 'showing' : 'disabled';
+      });
+    }
+    if (target) { ccTrackId = target.id; }
+    try { localStorage.setItem(CC_KEY, ccEnabled ? (target ? target.lang || target.id : 'en') : 'off'); } catch {}
+    syncCcUi();
+  }
+  function setupCcListeners() {
+    if (videoCc) {
+      videoCc.addEventListener('click', () => {
+        const tracks = ccTracks();
+        if (!tracks.length) return;
+        ccEnabled = !ccEnabled;
+        if (ccEnabled && !pickEnglishTrack(tracks) && !tracks.find(t=>t.id===ccTrackId)) ccTrackId = tracks[0].id;
+        if (ccEnabled && ccTrackId === 'off') { const en = pickEnglishTrack(tracks); ccTrackId = en ? en.id : tracks[0].id; }
+        applyCc(tracks);
+      });
+    }
+    if (videoCcTrack) {
+      videoCcTrack.addEventListener('change', () => {
+        const val = videoCcTrack.value;
+        if (val === 'off') { ccEnabled = false; }
+        else { ccEnabled = true; ccTrackId = val; }
+        applyCc();
+      });
+    }
+    if (videoPlayer) {
+      videoPlayer.textTracks && videoPlayer.textTracks.addEventListener && videoPlayer.textTracks.addEventListener('addtrack', () => { syncCcUi(); applyCc(); });
+    }
+  }
+  setupCcListeners();
 
   // Konfigurasi hls.js: cepat mulai, stabil saat jaringan jelek, max 720p.
   function stableHlsConfig(extra) {
@@ -1340,6 +1447,7 @@
       startFragPrefetch: true,
       testBandwidth: true,
       progressive: true,
+      enableWebVTT: true,
       appendErrorMaxRetry: 3,
       nudgeOffset: 0.1,
       nudgeMaxRetry: 5,
@@ -1369,6 +1477,8 @@
     videoHls.loadSource(url);
     videoHls.attachMedia(videoPlayer);
     let resolved = false;
+    videoHls.on(window.Hls.Events.SUBTITLE_TRACKS_UPDATED, () => { syncCcUi(); applyCc(); });
+    videoHls.on(window.Hls.Events.SUBTITLE_TRACK_LOADED, () => { syncCcUi(); });
     videoHls.on(window.Hls.Events.MANIFEST_PARSED, () => {
       if (resolved) return;
       try {
@@ -1380,6 +1490,8 @@
         videoHls.startLoad(0);
       } catch { /* ignore */ }
       resolved = true;
+      syncCcUi();
+      applyCc();
       setVideoStatus('Sedang ditonton');
       markOnline(station);
       videoPlayer.play().catch(() => setVideoStatus('Klik tombol putar pada video.'));
