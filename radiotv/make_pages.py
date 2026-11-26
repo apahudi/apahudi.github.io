@@ -3,10 +3,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 RADIO_FILTERS = [
-    ("all", "Semua"), ("favorit", "★ Favorit"), ("jabodetabek", "Jabodetabek"), ("jawa", "Jawa"),
+    ("all", "Semua"), ("favorit", "★ Favorit"), ("nasional", "Indonesia"), ("internasional", "Internasional"),
+    ("jabodetabek", "Jabodetabek"), ("jawa", "Jawa"),
     ("sumatera", "Sumatera"), ("kalimantan", "Kalimantan"),
     ("sulawesi", "Sulawesi"), ("bali-nusa", "Bali & Nusa"),
-    ("maluku", "Maluku"), ("papua", "Papua"), ("nasional", "Indonesia"),
+    ("maluku", "Maluku"), ("papua", "Papua"),
 ]
 TV_FILTERS = [
     ("all", "Semua"), ("favorit", "★ Favorit"), ("nasional", "Nasional"), ("regional", "Regional"),
@@ -39,7 +40,7 @@ TEMPLATE = '''<!DOCTYPE html>
   <title>{title} | TVRadioID</title>
   <meta name="description" content="{description}" />
   <meta name="theme-color" content="#0f172a" />
-  <link rel="stylesheet" href="style.css?v=23" />
+  <link rel="stylesheet" href="style.css?v=26" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -47,7 +48,7 @@ TEMPLATE = '''<!DOCTYPE html>
 <body data-page="{page}">
   <header class="header">
     <div class="container nav">
-      <a href="radio.html" class="brand" aria-label="TVRadioID — dari apahudi untuk negeri">
+      <a href="index.html" class="brand" aria-label="TVRadioID — dari apahudi untuk negeri">
         <span class="logo">TV<span>Radio</span>ID</span>
         <span class="tagline">dari apahudi untuk negeri</span>
       </a>
@@ -61,6 +62,7 @@ TEMPLATE = '''<!DOCTYPE html>
         <nav class="nav-menu" id="nav-menu">
           <button type="button" class="nav-close" aria-label="Tutup menu">✕</button>
           <ul role="menubar">
+            <li role="none"><a href="index.html" role="menuitem">Beranda</a></li>
             <li role="none"><a href="radio.html" role="menuitem"{radio_active}>Radio</a></li>
             <li role="none"><a href="tv.html" role="menuitem"{tv_active}>TV</a></li>
             <li role="none"><a href="{self}#provinsi" role="menuitem">Provinsi</a></li>
@@ -76,7 +78,9 @@ TEMPLATE = '''<!DOCTYPE html>
         <button type="button" class="refresh-btn" id="refresh-btn" title="Muat ulang daftar dari stations.json">🔄 Perbarui</button>
         <button type="button" class="view-toggle" id="view-toggle" aria-pressed="true" title="Ubah ke tampilan daftar">☰ Daftar</button>
         <label class="hide-toggle"><input type="checkbox" id="hide-offline" checked /> Sembunyikan offline/geo-block</label>
+        <button type="button" class="scan-btn" id="scan-btn" title="Scan semua kanal di kategori ini">🔍 Scan Kanal</button>
 {tv_controls}
+        <button type="button" class="country-clear" id="country-clear" hidden></button>
         <span class="count" id="station-count" aria-live="polite"></span>
       </div>
       <div class="category-tabs" id="filter-tabs" role="tablist" aria-label="Filter">
@@ -143,11 +147,20 @@ TEMPLATE = '''<!DOCTYPE html>
           <button class="fp-close" id="video-close" aria-label="Tutup pemutar video">✕</button>
         </div>
       </div>
-      <video id="video-player" controls playsinline autoplay></video>
-      <div class="video-overlay" id="video-overlay" hidden>
-        <div class="video-overlay-inner">
-          <div class="video-spinner" aria-hidden="true"></div>
-          <div class="video-overlay-text" id="video-overlay-text">Memuat…</div>
+      <div class="scan-progress" id="scan-progress" hidden>
+        <div class="scan-progress-bar"><div class="scan-progress-fill" id="scan-progress-fill"></div></div>
+        <div class="scan-progress-text" id="scan-progress-text"></div>
+      </div>
+      <div class="scan-body" id="scan-body">
+        <div class="scan-list" id="scan-list" hidden></div>
+        <div class="scan-video-wrap">
+          <video id="video-player" controls playsinline autoplay></video>
+          <div class="video-overlay" id="video-overlay" hidden>
+            <div class="video-overlay-inner">
+              <div class="video-spinner" aria-hidden="true"></div>
+              <div class="video-overlay-text" id="video-overlay-text">Memuat…</div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="fp-status" id="video-status">Memuat…</div>
@@ -175,8 +188,8 @@ TEMPLATE = '''<!DOCTYPE html>
   </div>
 
   <script src="hls.min.js?v=1"></script>
-  <script src="stations-data.js?v=7"></script>
-  <script src="script.js?v=27"></script>
+  <script src="stations-data.js?v=8"></script>
+  <script src="script.js?v=30"></script>
 </body>
 </html>
 '''
