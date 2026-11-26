@@ -69,6 +69,10 @@
   const scanBtn = document.getElementById('scan-btn');
   const countryClear = document.getElementById('country-clear');
   const themeSelect = document.getElementById('theme-select');
+  const settingsFab = document.getElementById('settings-fab');
+  const settingsPanel = document.getElementById('settings-panel');
+  const settingsBackdrop = document.getElementById('settings-backdrop');
+  const settingsClose = document.getElementById('settings-close');
 
   // Donation modal
   const donateBtn = document.getElementById('donate-btn');
@@ -1615,6 +1619,26 @@
   if (themeSelect) {
     themeSelect.addEventListener('change', () => applyTheme(themeSelect.value, true));
   }
+  function openSettings(open) {
+    if (!settingsPanel) return;
+    const mobile = window.matchMedia('(max-width: 768px)').matches;
+    if (!mobile) {
+      settingsPanel.classList.remove('open');
+      if (settingsBackdrop) settingsBackdrop.hidden = true;
+      if (settingsFab) settingsFab.setAttribute('aria-expanded','false');
+      return;
+    }
+    const on = !!open;
+    settingsPanel.classList.toggle('open', on);
+    if (settingsBackdrop) settingsBackdrop.hidden = !on;
+    if (settingsFab) settingsFab.setAttribute('aria-expanded', String(on));
+  }
+  if (settingsFab) settingsFab.addEventListener('click', () => openSettings(!settingsPanel || !settingsPanel.classList.contains('open')));
+  if (settingsClose) settingsClose.addEventListener('click', () => openSettings(false));
+  if (settingsBackdrop) settingsBackdrop.addEventListener('click', () => openSettings(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openSettings(false); });
+  window.addEventListener('resize', () => { if (!window.matchMedia('(max-width: 768px)').matches) openSettings(false); });
+  openSettings(false);
   if (scanBtn) {
     scanBtn.addEventListener('click', (e) => {
       e.preventDefault();
